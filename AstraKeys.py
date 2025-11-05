@@ -1,79 +1,75 @@
-# AstroKeys_v1.0.7 - Premium Solar Gold UI
-# Integrated GUI, modes: 1-Rovny, 2-Live, 3-Hybrid, 4-Error
-# by black
+# AstraKeys_v1.1.1 — Black Onyx / Solar Gold / Nebula blend
+# Frameless window (draggable by top bar), minimal buttons (—, ×)
 # Auto-updater: GitHub Releases integration included
-# IMPORTANT: set GITHUB_OWNER and GITHUB_REPO to your repository before building/publishing.
+# NOTE: Put your icon at assets/icon.ico and ensure GITHUB_OWNER / GITHUB_REPO are correct.
 
-CURRENT_VERSION = "1.0.7"
-GITHUB_OWNER = "YOUR_GITHUB_USERNAME"   # <<-- Замените тут
-GITHUB_REPO = "YOUR_REPO_NAME"          # <<-- И тут
-ASSET_NAME = "AstraKeys.exe"            # имя exe в релизе (для .exe сборок)
+CURRENT_VERSION = "1.1.1"
+GITHUB_OWNER = "SMisha2"
+GITHUB_REPO = "AstraKeys"
+ASSET_NAME = "AstraKeys.exe"
 
-# ----------------- imports -----------------
+# ---------------- imports ----------------
 import time
 import threading
 import sys
-import win32gui
-import win32con
-from pynput.keyboard import Controller, Key, Listener
 import re
 import random
 import os
 import winsound
-import requests
+from datetime import datetime
 
+# win32gui optional — used to find/activate Roblox window; fallback if missing
+try:
+    import win32gui
+    import win32con
+except Exception:
+    win32gui = None
+    win32con = None
+
+from pynput.keyboard import Controller, Key, Listener
+
+# network and GUI
+import requests
 from PyQt6 import QtWidgets, QtCore, QtGui
 
 # ---------------- Auto-update (GitHub Releases) ----------------
 def auto_update_github():
     """
-    Проверяет GitHub Releases (latest). Если версия новее — скачивает asset ASSET_NAME
-    в текущую папку как AstraKeys_new.exe, создает update.bat и перезапускает.
-    Работает корректно для Windows .exe (bat-метод) и для .py (перезапись файла).
+    Checks the latest GitHub release (owner/repo) and if a newer version is present,
+    downloads the ASSET_NAME asset and replaces the running exe/script.
+    Works for both frozen executables (creates update.bat) and .py scripts (replaces file).
     """
     try:
-        api = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
-        r = requests.get(api, timeout=6)
+        api = f"https://api.github.com/repos/SMisha2/AstraKeys/releases/latest"
+        r = requests.get(api, timeout=8)
         if r.status_code != 200:
             return
         data = r.json()
         latest_tag = (data.get("tag_name") or data.get("name") or "").strip()
         latest_version = latest_tag.lstrip("v").strip()
         if not latest_version:
-            # fallback: попробовать найти версию в body
             body = data.get("body", "")
             m = re.search(r"([0-9]+\.[0-9]+\.[0-9]+)", body)
             if m:
                 latest_version = m.group(1)
-
-        if not latest_version:
+        if not latest_version or latest_version == CURRENT_VERSION:
             return
-
-        if latest_version == CURRENT_VERSION:
-            return  # уже актуально
-
-        # найти нужный asset
         asset_url = None
         for a in data.get("assets", []):
             if a.get("name", "") == ASSET_NAME:
                 asset_url = a.get("browser_download_url")
                 break
         if not asset_url:
-            print("Auto-update: asset not found in latest release.")
+            print("Auto-update: release found but asset not present.")
             return
-
-        print(f"Auto-update: found new version {latest_version} -> downloading {ASSET_NAME} ...")
-        dl = requests.get(asset_url, timeout=20, stream=True)
+        print(f"Auto-update: new version {latest_version} found — downloading...")
+        dl = requests.get(asset_url, timeout=30, stream=True)
         if dl.status_code != 200:
             print("Auto-update: download failed", dl.status_code)
             return
-
         new_name = "AstraKeys_new.exe"
-        total = dl.headers.get('content-length')
-        if total is None:
-            with open(new_name, "wb") as f:
-                f.write(dl.content)
-        else:
+        total = dl.headers.get("content-length")
+        if total:
             total = int(total)
             written = 0
             with open(new_name, "wb") as f:
@@ -81,14 +77,14 @@ def auto_update_github():
                     if chunk:
                         f.write(chunk)
                         written += len(chunk)
-                        # простая индикация прогресса в консоли
                         pct = written * 100 // total
                         print(f"\rDownloading... {pct}% ", end="", flush=True)
             print()
-
-        # Если мы запущены как компилированный .exe - используем bat замену
+        else:
+            with open(new_name, "wb") as f:
+                f.write(dl.content)
+        # If running as frozen exe, create and run batch to replace
         if getattr(sys, "frozen", False) or sys.argv[0].lower().endswith(".exe"):
-            # безопасный bat, который дождётся закрытия приложения, заменит файл и запустит новый
             bat = f"""@echo off
 timeout /t 1 /nobreak >nul
 taskkill /f /im "{os.path.basename(sys.argv[0])}" >nul 2>&1
@@ -99,15 +95,13 @@ del "%~f0" & exit
 """
             with open("update.bat", "w", encoding="utf-8") as f:
                 f.write(bat)
-            print("Auto-update: launching update.bat and exiting.")
             try:
                 os.startfile("update.bat")
             except Exception:
-                # fallback: os.system
                 os.system("start update.bat")
             sys.exit(0)
         else:
-            # Если запущено как script (.py) — перезаписываем текущий файл и перезапускаем питон
+            # running as script: replace and restart
             target = os.path.abspath(sys.argv[0])
             try:
                 backup = target + ".bak"
@@ -119,7 +113,6 @@ del "%~f0" & exit
             try:
                 os.rename(new_name, target)
             except Exception:
-                # если переименование не получилось (путь/права) — пытаемся записать напрямую
                 with open(target, "wb") as f:
                     f.write(open(new_name, "rb").read())
                 os.remove(new_name)
@@ -127,15 +120,11 @@ del "%~f0" & exit
             time.sleep(0.5)
             os.execv(sys.executable, [sys.executable, target])
     except Exception as e:
-        # не ломаем работу при ошибке апдейтера
         print("Auto-update error:", e)
 
-
-# Запускаем авто-проверку в отдельном потоке, чтобы GUI/бот запускались быстро.
 def start_update_thread():
     def worker():
         try:
-            # небольшая задержка, чтобы не блокировать старт
             time.sleep(1.2)
             auto_update_github()
         except Exception:
@@ -143,27 +132,20 @@ def start_update_thread():
     t = threading.Thread(target=worker, daemon=True)
     t.start()
 
-# ---------------- SONGS ----------------
+# ---------------- SONGS (small defaults) ----------------
 SONG1 = r"""
 [eT] [eT] [6eT] [ey] [6eT] [4qe] [qe] [6qe] [qE] 4 [6qe]
-[eT] [eT] [6eT] [ey] [6eT] [4qe] [qe] [6qe] [qE] 4 [6qe]
-6 0 [6u] [0u] 6 0 [6p] 0 [4p] 8 [4o] [8o] 4 8 [4i] 8
-[eT]
 """
-
 SONG2 = r"""
 l--l--
-l--l-lzlk
-lshslzlklshslzlk
 """
-
 SONG3 = r"""
 fffff[4qf]spsfspsg
 """
 
-# Key order for optional neighbor error
 ROBLOX_KEYS = "1234567890qwertyuiopasdfghjklzxcvbnm"
 
+# ---------------- Bot ----------------
 class RobloxPianoBot:
     def __init__(self, playlist, bpm=100):
         self.keyboard = Controller()
@@ -171,7 +153,7 @@ class RobloxPianoBot:
         self.lock = threading.Lock()
         self.playlist = [self.sanitize_song(song) for song in playlist if self.sanitize_song(song)]
         if not self.playlist:
-            print("⚠️ Плейлист пуст после фильтрации!")
+            print("⚠️ PlayList empty after filtering!")
             sys.exit()
         self.song_index = 0
         self.song = self.playlist[self.song_index]
@@ -183,34 +165,41 @@ class RobloxPianoBot:
         self.hold_star = False
         self.freeze_note = False
         self.frozen_note_index = 0
-        # modes: 1-Rovny,2-Live,3-Hybrid,4-Error
         self.mode = 1
         self.start_delay = 0.03
         self.active_keys = set()
-        print("🎹 AstraKeys Bot запущен!")
-        print("▶ F1 - Пуск/Пауза | 🔁 F2 - Рестарт | ⏩ F3 - Пропуск 25 нот | ❌ F4 - Выход")
-        print("⭐ * - Удержание нот | ❄️ F6 - Заморозка | 🎹 F7 - Следующий режим | 🎚 F5 - Предыдущий режим | 🎵 F8 - Следующая песня")
+        print("🎹 AstraKeys Bot initialized")
+        print("▶ F1 Play/Pause | F2 Restart | F3 Skip25 | F4 Exit")
+        print("⭐ * Hold pedal | ❄ F6 Freeze | F7 NextMode | F5 PrevMode | F8 NextSong")
         threading.Thread(target=self.listen_keys, daemon=True).start()
 
     def sanitize_song(self, song):
         return re.sub(r"[^a-zA-Z0-9\[\]\s]","", song)
 
     def find_roblox_window(self):
-        def callback(hwnd, extra):
-            try:
-                if "Roblox" in win32gui.GetWindowText(hwnd):
-                    self.roblox_window = hwnd
-            except Exception:
-                pass
-        win32gui.EnumWindows(callback, None)
+        if not win32gui:
+            return None
+        try:
+            self.roblox_window = None
+            def callback(hwnd, extra):
+                try:
+                    if "Roblox" in win32gui.GetWindowText(hwnd):
+                        self.roblox_window = hwnd
+                except Exception:
+                    pass
+            win32gui.EnumWindows(callback, None)
+        except Exception:
+            return None
         return self.roblox_window
 
     def activate_roblox(self):
+        if not win32gui:
+            return False
         if self.find_roblox_window():
-            win32gui.ShowWindow(self.roblox_window, win32con.SW_RESTORE)
             try:
+                win32gui.ShowWindow(self.roblox_window, win32con.SW_RESTORE)
                 win32gui.SetForegroundWindow(self.roblox_window)
-            except:
+            except Exception:
                 pass
             return True
         return False
@@ -243,7 +232,6 @@ class RobloxPianoBot:
             self.active_keys.clear()
 
     def apply_error(self, k):
-        # 5% chance to apply neighboring-key error, except edges
         try:
             if k.lower() in ["1","m"]:
                 return k
@@ -263,7 +251,6 @@ class RobloxPianoBot:
     def listen_keys(self):
         def on_press(key):
             try:
-                # mode switching
                 if key == Key.f7:
                     old = self.mode
                     self.mode = self.mode + 1 if self.mode < 4 else 1
@@ -274,7 +261,6 @@ class RobloxPianoBot:
                     self.mode = self.mode - 1 if self.mode > 1 else 4
                     print(f"Mode: {self.mode} (was {old})")
                     return
-
                 if key == Key.f1:
                     self.playing = not self.playing
                     print("Play" if self.playing else "Pause")
@@ -335,11 +321,8 @@ class RobloxPianoBot:
         self.song_index = old_index
 
     def play_chord(self, chord):
-        # handle mode-specific press ordering and errors
         if self.mode == 4:
-            # apply potential errors to each key
             chord = [self.apply_error(k) for k in chord]
-
         if self.mode == 1:
             for k in chord:
                 self.press_key(k)
@@ -377,7 +360,6 @@ class RobloxPianoBot:
                 t.daemon = True
                 t.start()
         else:
-            # default fast release for error mode
             for k in chord:
                 self.release_key(k)
 
@@ -454,84 +436,152 @@ class RobloxPianoBot:
                 print("Main loop error:", e)
                 time.sleep(0.1)
 
+# ---------------- GUI (frameless top-drag) ----------------
+class TitleBar(QtWidgets.QWidget):
+    def __init__(self, parent=None, title_text="AstraKeys — by black"):
+        super().__init__(parent)
+        self.parent = parent
+        self.setFixedHeight(40)
+        self.setObjectName("titlebar")
+        self.init_ui(title_text)
+        self.setMouseTracking(True)
 
-# ------------------- GUI -------------------
+    def init_ui(self, title_text):
+        gold = "#d4af37"
+        soft_gold = "#ffd86a"
+        text = "#f5f3f1"
+
+        layout = QtWidgets.QHBoxLayout()
+        layout.setContentsMargins(12, 4, 8, 4)
+        layout.setSpacing(8)
+
+        self.title = QtWidgets.QLabel(title_text)
+        self.title.setStyleSheet("font-weight:600; font-size:14px; color: %s;" % soft_gold)
+        layout.addWidget(self.title)
+        layout.addStretch()
+
+        # minimize button
+        self.btn_min = QtWidgets.QPushButton("—")
+        self.btn_min.setFixedSize(36, 28)
+        self.btn_min.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.btn_min.setObjectName("btn_min")
+        self.btn_min.setToolTip("Свернуть")
+        layout.addWidget(self.btn_min)
+
+        # close button
+        self.btn_close = QtWidgets.QPushButton("✕")
+        self.btn_close.setFixedSize(36, 28)
+        self.btn_close.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.btn_close.setObjectName("btn_close")
+        self.btn_close.setToolTip("Закрыть")
+        layout.addWidget(self.btn_close)
+
+        self.setLayout(layout)
+
+        # style
+        self.setStyleSheet(f"""
+            QWidget#titlebar{{background: transparent;}}
+            QPushButton#btn_min, QPushButton#btn_close {{
+                border: none;
+                background: transparent;
+                color: {text};
+                font-size: 14px;
+                border-radius: 6px;
+            }}
+            QPushButton#btn_min:hover {{ background: rgba(212,175,55,0.08); }}
+            QPushButton#btn_close:hover {{ background: rgba(255,80,80,0.12); }}
+        """)
+
+    def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self.parent.start_drag(event.globalPosition().toPoint())
+
+    def mouseMoveEvent(self, event):
+        pass
+
 class BotGUI(QtWidgets.QWidget):
     def __init__(self, bot: RobloxPianoBot):
         super().__init__()
         self.bot = bot
+        # top-level frameless + translucent background to allow rounding effect
         self.setWindowTitle("AstraKeys — by black")
-        # set window icon if available
-        ico_path = os.path.join(os.path.dirname(__file__), 'AstraKeys.ico') if '__file__' in globals() else 'AstraKeys.ico'
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setWindowFlag(QtCore.Qt.WindowType.FramelessWindowHint)
+        self.setWindowFlag(QtCore.Qt.WindowType.WindowSystemMenuHint, True)
+        self.drag_pos = None
+
+        # load icon if available
+        ico_path = os.path.join(os.path.dirname(__file__), 'assets', 'icon.ico') if '__file__' in globals() else 'assets/icon.ico'
         if os.path.exists(ico_path):
             try:
                 self.setWindowIcon(QtGui.QIcon(ico_path))
-            except:
+            except Exception:
                 pass
 
         self.init_ui()
         self.updater = QtCore.QTimer()
         self.updater.timeout.connect(self.refresh_status)
         self.updater.start(150)
-        # play startup ping
+
         try:
-            winsound.Beep(1200,120)
+            winsound.Beep(1200, 100)
         except:
             pass
 
     def init_ui(self):
-        self.setGeometry(200,200,740,520)
-        # Solar Gold palette
-        dark = '#070707'
-        panel = '#121212'
+        # colors
+        dark = '#0b0b0b'
+        panel = 'rgba(18,18,18,0.85)'
         gold = '#d4af37'
         soft_gold = '#ffd86a'
         text = '#f5f3f1'
-        glass = 'rgba(255,255,255,0.03)'
+        nebula = 'qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 rgba(60,20,80,0.06), stop:1 rgba(5,20,60,0.04))'
 
-        self.setStyleSheet(f"""
-            QWidget{{background: {dark}; color: {text}; font-family: 'Montserrat', Arial, sans-serif;}}
-            QListWidget{{background:{panel}; border:1px solid rgba(212,175,55,0.12); border-radius:10px; padding:6px;}}
-            QTextEdit{{background:{panel}; border:1px solid rgba(212,175,55,0.08); border-radius:8px; padding:6px;}}
-            QPushButton{{background: transparent; border:1px solid rgba(212,175,55,0.12); padding:10px; border-radius:10px;}}
-            QPushButton:hover{{background: rgba(212,175,55,0.06);}}
-            QSlider::groove:horizontal{{height:8px; background: rgba(255,255,255,0.04); border-radius:4px;}}
-            QSlider::handle:horizontal{{background:{soft_gold}; width:14px; border-radius:7px;}}
-            QComboBox{{background:{panel}; border:1px solid rgba(255,216,106,0.06); padding:6px; border-radius:8px;}}
-            QLabel.title{{font-size:20px; font-weight:700; color:{soft_gold};}}
-            QLabel.small{{color: #9b9b9b;}}
-            QProgressBar{{background:{panel}; border:1px solid rgba(255,255,255,0.03); border-radius:8px; text-align:center;}}
-            QProgressBar::chunk{{background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {gold}, stop:1 {soft_gold}); border-radius:8px;}}
+        # main layout container with padding to simulate rounded corners
+        outer = QtWidgets.QVBoxLayout()
+        outer.setContentsMargins(8, 8, 8, 8)
+        outer.setSpacing(0)
+
+        # central widget (rounded rectangle)
+        self.central = QtWidgets.QFrame()
+        self.central.setObjectName("central_frame")
+        self.central.setStyleSheet(f"""
+            QFrame#central_frame {{
+                background: {dark};
+                border-radius: 12px;
+            }}
         """)
+        central_layout = QtWidgets.QVBoxLayout()
+        central_layout.setContentsMargins(0, 0, 0, 10)
+        central_layout.setSpacing(8)
 
-        main = QtWidgets.QVBoxLayout()
-        header = QtWidgets.QHBoxLayout()
-        title = QtWidgets.QLabel("AstraKeys")
-        title.setProperty('class','title')
-        title.setFont(QtGui.QFont('Montserrat', 22))
-        header.addWidget(title)
-        header.addStretch()
-        by_label = QtWidgets.QLabel("by black")
-        by_label.setFont(QtGui.QFont('Montserrat', 10))
-        by_label.setStyleSheet(f"color: {gold};")
-        header.addWidget(by_label)
-        main.addLayout(header)
+        # title bar (top draggable)
+        self.titlebar = TitleBar(self, title_text=f"AstraKeys — by black")
+        self.titlebar.btn_close.clicked.connect(self.close)
+        self.titlebar.btn_min.clicked.connect(self.showMinimized)
+        central_layout.addWidget(self.titlebar)
 
-        # animated subtitle
-        subtitle = QtWidgets.QLabel("Premium · Solar Gold UI  —  Auto-update: GitHub Releases")
-        subtitle.setProperty('class','small')
-        main.addWidget(subtitle)
+        # subtitle
+        subtitle = QtWidgets.QLabel("Solar Gold · Black Onyx · Nebula")
+        subtitle.setStyleSheet(f"color: {soft_gold}; font-size:12px; margin-left:14px;")
+        central_layout.addWidget(subtitle)
 
         # song input
         self.song_input = QtWidgets.QTextEdit()
-        self.song_input.setPlaceholderText("Вставьте текст песни здесь и нажмите 'Добавить'")
+        self.song_input.setPlaceholderText("Вставьте текст песни сюда и нажмите 'Добавить'")
         self.song_input.setFixedHeight(110)
-        main.addWidget(self.song_input)
+        self.song_input.setStyleSheet(f"background: {panel}; border-radius:8px; padding:8px; color:{text};")
+        central_layout.addWidget(self.song_input)
+
+        # add button
         add_row = QtWidgets.QHBoxLayout()
-        self.add_btn = QtWidgets.QPushButton("Добавить песню в список")
+        self.add_btn = QtWidgets.QPushButton("Добавить песню")
+        self.add_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.add_btn.setFixedHeight(36)
+        self.add_btn.setStyleSheet(f"border-radius:8px; border:1px solid rgba(212,175,55,0.12); background: transparent; color:{text};")
         add_row.addWidget(self.add_btn)
         add_row.addStretch()
-        main.addLayout(add_row)
+        central_layout.addLayout(add_row)
         self.add_btn.clicked.connect(self.add_song_from_input)
 
         # controls row
@@ -540,24 +590,28 @@ class BotGUI(QtWidgets.QWidget):
         self.next_btn = QtWidgets.QPushButton("Next Song (F8)")
         self.prev_mode_btn = QtWidgets.QPushButton("Prev Mode (F5)")
         self.next_mode_btn = QtWidgets.QPushButton("Next Mode (F7)")
-        row.addWidget(self.start_btn)
-        row.addWidget(self.next_btn)
-        row.addWidget(self.prev_mode_btn)
-        row.addWidget(self.next_mode_btn)
-        main.addLayout(row)
+        for btn in (self.start_btn, self.next_btn, self.prev_mode_btn, self.next_mode_btn):
+            btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+            btn.setFixedHeight(36)
+            btn.setStyleSheet("border-radius:8px; border:1px solid rgba(212,175,55,0.08); background: transparent; color: %s;" % text)
+            row.addWidget(btn)
+        central_layout.addLayout(row)
 
         # song list and status
         mid = QtWidgets.QHBoxLayout()
         leftcol = QtWidgets.QVBoxLayout()
         self.song_list = QtWidgets.QListWidget()
+        self.song_list.setStyleSheet(f"background: {panel}; border-radius:10px; padding:6px; color:{text};")
         for i,s in enumerate(self.bot.playlist):
             self.song_list.addItem(f"Song {i+1} — {len(s)} chars")
         self.song_list.setCurrentRow(self.bot.song_index)
         leftcol.addWidget(self.song_list)
 
-        # small controls under list
         list_controls = QtWidgets.QHBoxLayout()
         self.remove_btn = QtWidgets.QPushButton("Remove Selected")
+        self.remove_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.remove_btn.setFixedHeight(30)
+        self.remove_btn.setStyleSheet("border-radius:6px; border:1px solid rgba(212,175,55,0.08); background: transparent; color: %s;" % text)
         list_controls.addWidget(self.remove_btn)
         list_controls.addStretch()
         leftcol.addLayout(list_controls)
@@ -569,53 +623,74 @@ class BotGUI(QtWidgets.QWidget):
         self.status_label = QtWidgets.QLabel("Status: Idle")
         self.mode_label = QtWidgets.QLabel("Mode: 1")
         self.pos_label = QtWidgets.QLabel("Pos: 0")
-        right.addWidget(self.status_label)
-        right.addWidget(self.mode_label)
-        right.addWidget(self.pos_label)
+        for lbl in (self.status_label, self.mode_label, self.pos_label):
+            lbl.setStyleSheet("color: %s;" % text)
+            right.addWidget(lbl)
 
-        # progress bar (for potential downloads)
         self.progress = QtWidgets.QProgressBar()
         self.progress.setValue(0)
         self.progress.setVisible(False)
         right.addWidget(self.progress)
 
         mid.addLayout(right,1)
-        main.addLayout(mid)
+        central_layout.addLayout(mid)
 
-        # delay slider
+        # bottom controls
         bottom = QtWidgets.QHBoxLayout()
         self.delay_slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
         self.delay_slider.setMinimum(0)
         self.delay_slider.setMaximum(200)
         self.delay_slider.setValue(int(self.bot.start_delay * 1000))
         self.delay_label = QtWidgets.QLabel(f"Start Delay: {self.bot.start_delay:.3f}s")
+        self.delay_label.setStyleSheet("color: %s;" % text)
         bottom.addWidget(self.delay_label)
         bottom.addWidget(self.delay_slider)
-        main.addLayout(bottom)
+        central_layout.addLayout(bottom)
 
         # mode combo
         mode_row = QtWidgets.QHBoxLayout()
         self.mode_combo = QtWidgets.QComboBox()
         self.mode_combo.addItems(["1 - Ровный", "2 - Живой", "3 - Гибридный", "4 - Ошибочный (5%)"])
         self.mode_combo.setCurrentIndex(self.bot.mode - 1)
+        self.mode_combo.setStyleSheet(f"background: {panel}; color:{text}; border-radius:6px; padding:6px;")
         mode_row.addWidget(QtWidgets.QLabel("Mode:"))
         mode_row.addWidget(self.mode_combo)
-        main.addLayout(mode_row)
+        central_layout.addLayout(mode_row)
 
-        help_label = QtWidgets.QLabel("F1 Start/Pause, F2 Restart, F3 Skip25, F4 Exit, F5 PrevMode, F7 NextMode, F8 NextSong")
-        help_label.setProperty('class','small')
-        main.addWidget(help_label)
+        help_label = QtWidgets.QLabel("F1 Start/Pause | F2 Restart | F3 Skip25 | F4 Exit | F5 PrevMode | F7 NextMode | F8 NextSong")
+        help_label.setStyleSheet("color: #9b9b9b;")
+        central_layout.addWidget(help_label)
 
-        # footer
+        # footer with signature and small version/date on right
         footer = QtWidgets.QHBoxLayout()
-        self.signature = QtWidgets.QLabel("AstraKeys — Premium · by black")
-        self.signature.setFont(QtGui.QFont('Montserrat', 9))
+        self.signature = QtWidgets.QLabel("AstraKeys — by black")
         self.signature.setStyleSheet(f"color: {gold};")
+
+        build_date = datetime.now().strftime("%Y-%m-%d")
+        self.version_label = QtWidgets.QLabel(f"v{CURRENT_VERSION} · {build_date}")
+        self.version_label.setStyleSheet("color: rgba(255,255,255,0.28); font-size: 11px; margin-right: 8px;")
+
         footer.addWidget(self.signature)
         footer.addStretch()
-        main.addLayout(footer)
+        footer.addWidget(self.version_label)
+        central_layout.addLayout(footer)
 
-        # connect signals
+        self.central.setLayout(central_layout)
+        outer.addWidget(self.central)
+        self.setLayout(outer)
+
+        # stylesheet for glow / subtle gradients
+        self.setStyleSheet(f"""
+            QWidget {{ font-family: 'Segoe UI', Arial, sans-serif; }}
+            QSlider::groove:horizontal{{height:8px; background: rgba(255,255,255,0.03); border-radius:4px;}}
+            QSlider::handle:horizontal{{background: {soft_gold}; width:14px; border-radius:7px;}}
+            QComboBox{{padding:6px; border-radius:6px;}}
+            QProgressBar{{background: rgba(255,255,255,0.02); border-radius:8px; text-align:center;}}
+            QProgressBar::chunk{{background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 {gold}, stop:1 {soft_gold}); border-radius:8px;}}
+        """)
+
+        # connections
+        self.add_btn.clicked.connect(self.add_song_from_input)
         self.start_btn.clicked.connect(self.toggle_start)
         self.next_btn.clicked.connect(self.next_song)
         self.prev_mode_btn.clicked.connect(self.prev_mode)
@@ -624,8 +699,19 @@ class BotGUI(QtWidgets.QWidget):
         self.delay_slider.valueChanged.connect(self.delay_changed)
         self.mode_combo.currentIndexChanged.connect(self.mode_combo_changed)
 
-        self.setLayout(main)
+    # dragging helpers
+    def start_drag(self, global_pos: QtCore.QPoint):
+        self.drag_pos = global_pos - self.frameGeometry().topLeft()
 
+    def mouseMoveEvent(self, event):
+        if self.drag_pos and event.buttons() & QtCore.Qt.MouseButton.LeftButton:
+            newpos = event.globalPosition().toPoint() - self.drag_pos
+            self.move(newpos)
+
+    def mouseReleaseEvent(self, event):
+        self.drag_pos = None
+
+    # UI actions
     def add_song_from_input(self):
         text = self.song_input.toPlainText().strip()
         if text:
@@ -692,9 +778,9 @@ class BotGUI(QtWidgets.QWidget):
             self.song_list.setCurrentRow(self.bot.song_index)
 
 
-# ------------------- Main runner -------------------
+# ---------------- Main runner ----------------
 if __name__ == "__main__":
-    # start auto-update thread (non-blocking)
+    # start updater thread
     start_update_thread()
 
     playlist = [SONG1, SONG2, SONG3]
@@ -704,26 +790,24 @@ if __name__ == "__main__":
 
     app = QtWidgets.QApplication(sys.argv)
 
-    # Try to set Montserrat if installed; fallback to default
+    # load Montserrat if present
     try:
         font_db = QtGui.QFontDatabase()
         if 'Montserrat' not in font_db.families():
-            # attempt to load from local file if present
             local_ttf = os.path.join(os.path.dirname(__file__) if '__file__' in globals() else '.', 'Montserrat-Regular.ttf')
             if os.path.exists(local_ttf):
-                font_id = font_db.addApplicationFont(local_ttf)
-                print('Loaded Montserrat from file', font_id)
+                font_db.addApplicationFont(local_ttf)
     except Exception:
         pass
 
     gui = BotGUI(bot)
 
-    # Fade-in animation for nicer startup
+    # fade-in
     try:
         gui.setWindowOpacity(0.0)
         gui.show()
         anim = QtCore.QPropertyAnimation(gui, b"windowOpacity")
-        anim.setDuration(600)
+        anim.setDuration(380)
         anim.setStartValue(0.0)
         anim.setEndValue(1.0)
         anim.setEasingCurve(QtCore.QEasingCurve.Type.InOutCubic)
