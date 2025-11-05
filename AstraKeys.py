@@ -86,12 +86,23 @@ def auto_update_github():
         # If running as frozen exe, create and run batch to replace
         if getattr(sys, "frozen", False) or sys.argv[0].lower().endswith(".exe"):
             bat = f"""@echo off
-timeout /t 1 /nobreak >nul
+echo Updating AstraKeys...
+timeout /t 1 >nul
+
+:kill
 taskkill /f /im "{os.path.basename(sys.argv[0])}" >nul 2>&1
-del "{os.path.basename(sys.argv[0])}" >nul 2>&1
-rename "{new_name}" "{ASSET_NAME}" >nul 2>&1
+if exist "{os.path.basename(sys.argv[0])}" (
+    timeout /t 1 >nul
+    goto kill
+)
+
+:replace
+move /y "{new_name}" "{ASSET_NAME}" >nul 2>&1
 start "" "{ASSET_NAME}"
-del "%~f0" & exit
+del "%~f0" >nul 2>&1
+exit
+"""
+
 """
             with open("update.bat", "w", encoding="utf-8") as f:
                 f.write(bat)
