@@ -25,6 +25,7 @@ jobs:
           pip install pynput
           pip install requests
           pip install pywin32
+          pip install mido pyperclip psutil
 
 
       - name: Build EXE
