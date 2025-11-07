@@ -1,7 +1,7 @@
-# AstraKeys_v1.1.4 — Black Onyx / Solar Gold / Nebula blend
+# AstraKeys_v1.1.9 — Black Onyx / Solar Gold / Nebula blend
 # by SMisha2
 # Features: Fixed freeze mode, working chords and pedal, instant mode 1, smooth operation
-CURRENT_VERSION = "1.1.4"
+CURRENT_VERSION = "1.1.9"
 GITHUB_OWNER = "SMisha2"
 GITHUB_REPO = "AstraKeys"
 ASSET_NAME = "AstraKeys.exe"
@@ -16,7 +16,6 @@ import random
 from datetime import datetime
 import webbrowser
 import subprocess
-
 # optional win32
 try:
     import win32gui
@@ -26,32 +25,26 @@ except Exception:
     win32gui = None
     win32con = None
     win32process = None
-
 try:
     from pynput.keyboard import Controller, Key, Listener
 except Exception:
     Controller = None
     Key = None
     Listener = None
-
 import requests
-
 try:
     from PyQt6 import QtWidgets, QtCore, QtGui
 except Exception:
     raise RuntimeError("PyQt6 is required. Install via: pip install PyQt6")
-
 # ---------------- constants ----------------
 PEDAL_KEYS = {"*", "[", "]"}
 ROBLOX_KEYS = "1234567890qwertyuiopasdfghjklzxcvbnm"
-
 # ---------------- Keyboard helpers ----------------
 def is_valid_key(key):
     """Check if key is valid for pynput"""
     if not key or not isinstance(key, str) or len(key) != 1:
         return False
     return key.isalnum() or key in "!@#$%^&*()_+-=[]{};':\",./<>?\\|`~"
-
 # ---------------- Auto-update helpers ----------------
 def download_asset_to_file(url, dest_path, progress_callback=None, max_retries=3):
     for attempt in range(max_retries):
@@ -96,143 +89,46 @@ def download_asset_to_file(url, dest_path, progress_callback=None, max_retries=3
             else:
                 return False, str(e)
     return False, "Max retries exceeded"
-
 def perform_replacement_and_restart(new_file, target_name, is_frozen):
     try:
         if is_frozen or sys.argv[0].lower().endswith(".exe"):
-            # Получаем полные пути к файлам
-            current_path = os.path.abspath(sys.argv[0])
-            current_dir = os.path.dirname(current_path)
-            current_name = os.path.basename(current_path)
-            new_file_path = os.path.join(current_dir, new_file)
-            target_path = os.path.join(current_dir, target_name)
-            bat_path = os.path.join(current_dir, "update.bat")
-            
-            # Создаем надежный batch-файл
+            current_exec = os.path.basename(sys.argv[0])
             bat_content = f"""@echo off
-setlocal enabledelayedexpansion
-chcp 65001 > nul
-
-echo Обновление программы...
-echo Закрываем текущее приложение...
-
-REM Получаем PID текущего процесса
-set PID=
-for /f "tokens=2 delims=," %%i in ('tasklist /fi "imagename eq {current_name}" /fo csv /nh') do set PID=%%~i
-
-REM Завершаем процесс
-if defined PID (
-    echo Завершаем процесс PID !PID!...
-    taskkill /f /pid !PID! >nul 2>&1
-)
-
-REM Ждем полного завершения
-timeout /t 3 /nobreak >nul
-
-REM Проверяем, закрылся ли процесс
-:check_process
-if defined PID (
-    tasklist | findstr /i "!PID!" >nul
-    if not errorlevel 1 (
-        timeout /t 1 /nobreak >nul
-        goto check_process
-    )
-)
-
-echo Удаляем старый файл...
-del "{current_path}" >nul 2>&1
-
-REM Если файл не удалился, пробуем принудительно
-if exist "{current_path}" (
-    echo Принудительное удаление...
-    attrib -r -s -h "{current_path}" >nul 2>&1
-    del /f /q "{current_path}" >nul 2>&1
-)
-
-REM Проверяем, удален ли файл
-if exist "{current_path}" (
-    echo Ошибка: Не удалось удалить старый файл
-    pause
-    exit /b 1
-)
-
-echo Копируем новую версию...
-copy /y "{new_file_path}" "{target_path}" >nul
-if errorlevel 1 (
-    echo Ошибка: Не удалось скопировать новый файл
-    pause
-    exit /b 1
-)
-
-echo Удаляем временный файл...
-del "{new_file_path}" >nul 2>&1
-
-echo Запускаем обновленную версию...
-start "" "{target_path}"
-
-echo Обновление успешно завершено
-timeout /t 2 /nobreak >nul
-
-echo Удаляем временные файлы...
-del "%~f0" >nul 2>&1
-exit
+:kill_loop
+taskkill /f /im "{current_exec}" >nul 2>&1
+timeout /t 1 >nul
+tasklist | findstr /i "{current_exec}" >nul && goto kill_loop
+del "{current_exec}" >nul 2>&1
+rename "{new_file}" "{target_name}" >nul 2>&1
+start "" "{target_name}"
+del "%~f0" >nul 2>&1 & exit
 """
-            # Сохраняем batch-файл
-            with open(bat_path, "w", encoding="utf-8") as f:
+            with open("update.bat", "w", encoding="utf-8") as f:
                 f.write(bat_content)
-            
-            # Скрываем окно консоли при запуске
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = 0  # Скрыть окно
-            
-            # Запускаем batch-файл и завершаем текущее приложение
-            print("Запуск процесса обновления...")
-            subprocess.Popen([bat_path], startupinfo=startupinfo, shell=True)
-            
-            # Небольшая задержка для запуска batch-файла
-            time.sleep(1)
-            
-            # Завершаем текущее приложение
+            try:
+                os.startfile("update.bat")
+            except:
+                os.system("start update.bat")
             sys.exit(0)
-            
         else:
-            # Для .py скриптов - обычное обновление
             target = os.path.abspath(sys.argv[0])
             try:
                 backup = target + ".bak"
                 if os.path.exists(backup):
                     os.remove(backup)
                 os.rename(target, backup)
-            except Exception as e:
-                print(f"Backup error: {e}")
-            
+            except:
+                pass
             try:
                 os.replace(new_file, target)
-            except Exception as e:
-                print(f"Replace error: {e}")
-                # Альтернативный метод копирования
+            except:
                 with open(new_file, "rb") as src, open(target, "wb") as dst:
                     dst.write(src.read())
                 os.remove(new_file)
-            
-            # Перезапускаем скрипт
             os.execv(sys.executable, [sys.executable, target])
-            
     except Exception as e:
-        print(f"Replacement error: {e}")
-        # Показываем пользователю ошибку
-        try:
-            from PyQt6.QtWidgets import QMessageBox
-            msg = QMessageBox()
-            msg.setWindowTitle("Ошибка обновления")
-            msg.setText(f"Не удалось обновить программу:\n{str(e)}\n\nПопробуйте обновить вручную через GitHub.")
-            msg.setIcon(QMessageBox.Icon.Warning)
-            msg.exec()
-        except:
-            pass
+        print("Replacement error:", e)
         raise
-
 def fetch_latest_release_info():
     api = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
     try:
@@ -241,13 +137,11 @@ def fetch_latest_release_info():
         return r.json(), None
     except Exception as e:
         return None, str(e)
-
 def version_tuple(v):
     try:
         return tuple(map(int, v.split(".")))
     except:
         return (0, 0, 0)
-
 # ---------------- Roblox helpers ----------------
 def find_roblox_window():
     if not win32gui:
@@ -267,7 +161,6 @@ def find_roblox_window():
         return hwnd_found
     except:
         return None
-
 def activate_roblox_window():
     hwnd = find_roblox_window()
     if hwnd:
@@ -278,7 +171,6 @@ def activate_roblox_window():
         except:
             pass
     return False
-
 def bring_roblox_to_front():
     """Bring Roblox window to front without stealing focus"""
     hwnd = find_roblox_window()
@@ -293,7 +185,6 @@ def bring_roblox_to_front():
         except:
             pass
     return False
-
 # ---------------- Bot core ----------------
 class RobloxPianoBot:
     def __init__(self, playlist_with_names, bpm=100):
@@ -326,7 +217,6 @@ class RobloxPianoBot:
         print("⭐ * - Pedal | F6 Freeze Note | F7 Next Mode | F5 Prev Mode | F8 Next Song | F10 Force Roblox")
         if Listener:
             threading.Thread(target=self.listen_keys, daemon=True).start()
-
     def sanitize_song(self, song):
         if not song:
             return ""
@@ -334,7 +224,6 @@ class RobloxPianoBot:
         black = "!@$%^*()_+-=[]{};':\",./<>?\\|`~&"
         allowed = white + black + " \t\n\r"
         return ''.join(ch for ch in song if ch in allowed)
-
     def is_key_valid(self, key):
         """Check if key can be pressed safely"""
         if not key or not isinstance(key, str):
@@ -343,7 +232,6 @@ class RobloxPianoBot:
         if key in problematic:
             return False
         return True
-
     def press_key(self, key):
         with self.lock:
             if not self.keyboard:
@@ -356,7 +244,6 @@ class RobloxPianoBot:
                     self.active_keys.add(key)
                 except Exception as e:
                     print(f"Error pressing key '{key}': {e}")
-
     def release_key(self, key):
         with self.lock:
             if not self.keyboard:
@@ -369,7 +256,6 @@ class RobloxPianoBot:
                     self.active_keys.discard(key)
                 except Exception as e:
                     print(f"Error releasing key '{key}': {e}")
-
     def release_all(self):
         with self.lock:
             if not self.keyboard:
@@ -381,7 +267,6 @@ class RobloxPianoBot:
                 except:
                     pass
             self.active_keys.clear()
-
     def apply_error(self, k):
         try:
             if len(k) != 1:
@@ -401,7 +286,6 @@ class RobloxPianoBot:
             return k
         except:
             return k
-
     def listen_keys(self):
         def on_press(key):
             try:
@@ -442,7 +326,6 @@ class RobloxPianoBot:
                     activate_roblox_window()
             except:
                 pass
-
         def on_release(key):
             try:
                 if hasattr(key, "char") and key.char in PEDAL_KEYS:
@@ -450,13 +333,11 @@ class RobloxPianoBot:
                     print("Pedal up")
             except:
                 pass
-
         try:
             with Listener(on_press=on_press, on_release=on_release) as listener:
                 listener.join()
         except Exception as e:
             print("Listener failed:", e)
-
     def next_song(self):
         old_index = self.song_index
         n = len(self.playlist)
@@ -469,12 +350,10 @@ class RobloxPianoBot:
                 print(f"Next song: {self.song_name} ({self.song_index+1}/{n})")
                 return
         self.song_index = old_index
-
     def play_chord(self, chord):
         """Play chord with mode-specific timing"""
         if self.mode == 4:
             chord = [self.apply_error(k) for k in chord]
-        
         if self.mode == 1:
             # No delay between notes in mode 1
             for k in chord:
@@ -500,7 +379,6 @@ class RobloxPianoBot:
                 press_threads.append(t_press)
             max_press_time = base_press_delay + (len(chord) * 0.003) + 0.002
             time.sleep(max_press_time)
-
     def release_chord(self, chord):
         """Release chord with mode-specific timing"""
         if not chord:
@@ -525,12 +403,10 @@ class RobloxPianoBot:
         else:
             for k in chord:
                 self.release_key(k)
-
     def play_song(self):
         time.sleep(0.5)
         last_pedal_state = False
         current_chord = None
-
         while True:
             try:
                 if self.restart:
@@ -544,27 +420,21 @@ class RobloxPianoBot:
                         time.sleep(0.01)
                     time.sleep(0.1)
                     continue
-
                 if not self.playing:
                     time.sleep(0.05)
                     continue
-
                 # Handle F6 freeze
                 current_index = self.frozen_note_index if self.freeze_note else self.note_index
-
                 if current_index >= len(self.song):
                     time.sleep(0.05)
                     continue
-
                 char = self.song[current_index]
-                
                 # Skip whitespace
                 if char.isspace():
                     if not self.freeze_note:
                         self.note_index += 1
                     time.sleep(0.01)
                     continue
-
                 # Handle F3 Skip25
                 if self.skip_notes > 0 and not self.freeze_note:
                     if char == "[":
@@ -577,12 +447,10 @@ class RobloxPianoBot:
                         self.note_index += 1
                     self.skip_notes -= 1
                     continue
-
                 # Wait for pedal press to play next note/chord
                 if not self.hold_star:
                     time.sleep(0.01)
                     continue
-
                 # Parse chord or single note
                 if char == "[":
                     end = self.song.find("]", current_index)
@@ -595,39 +463,30 @@ class RobloxPianoBot:
                 else:
                     chord = [char]
                     next_index = current_index + 1
-
                 # Activate Roblox before playing
                 bring_roblox_to_front()
                 time.sleep(0.01)  # Small delay to ensure window is active
-
                 # Apply start delay if set
                 if self.start_delay > 0:
                     time.sleep(self.start_delay)
-
                 # Play the chord
                 self.play_chord(chord)
                 current_chord = chord
                 print(f"Played: {chord} at pos {current_index}")
-
                 # Keep holding the chord while pedal is pressed
                 while self.hold_star and self.playing and not self.restart:
                     time.sleep(0.01)
-
                 # Release the chord when pedal is released
                 if current_chord:
                     self.release_chord(current_chord)
                     current_chord = None
-
                 # Move to next note only if not frozen
                 if not self.freeze_note:
                     self.note_index = next_index
-
                 time.sleep(0.001)
-
             except Exception as e:
                 print("Main loop error:", e)
                 time.sleep(0.1)
-
 # ---------------- About Dialog ----------------
 class AboutDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
@@ -663,19 +522,15 @@ class AboutDialog(QtWidgets.QDialog):
                 background: #252525;
             }
         """)
-
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
-
         title = QtWidgets.QLabel("AstraKeys")
         title.setProperty("class", "title")
         layout.addWidget(title, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
-
         version = QtWidgets.QLabel(f"Версия: {CURRENT_VERSION}")
         version.setStyleSheet("color: #9b9b9b;")
         layout.addWidget(version, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
-
         desc = QtWidgets.QLabel(
             "Программа для игры на пианино в Roblox\n"
             "Поддерживает чёрные и белые клавиши,\n"
@@ -683,24 +538,19 @@ class AboutDialog(QtWidgets.QDialog):
         )
         desc.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(desc)
-
         link = QtWidgets.QLabel(f'<a href="{RELEASES_URL}" style="color:#7aa7ff;text-decoration:underline;">{RELEASES_URL}</a>')
         link.setOpenExternalLinks(True)
         link.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(link)
-
         author = QtWidgets.QLabel("Автор: SMisha2")
         author.setStyleSheet("color: #d4af37;")
         author.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(author)
-
         btn = QtWidgets.QPushButton("Закрыть")
         btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         btn.clicked.connect(self.accept)
         layout.addWidget(btn)
-
         self.setLayout(layout)
-
 # ---------------- GUI ----------------
 class BotGUI(QtWidgets.QWidget):
     def __init__(self, bot: RobloxPianoBot):
@@ -709,7 +559,6 @@ class BotGUI(QtWidgets.QWidget):
         self.setWindowTitle("AstraKeys — by SMisha2")
         self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
-        
         # Default size and position
         screen = QtWidgets.QApplication.primaryScreen().availableGeometry()
         default_width = 700
@@ -717,11 +566,9 @@ class BotGUI(QtWidgets.QWidget):
         x = (screen.width() - default_width) // 2
         y = (screen.height() - default_height) // 2
         self.setGeometry(x, y, default_width, default_height)
-        
         # Dragging variables
         self.dragging = False
         self.drag_position = None
-        
         # load icon if available
         ico_path = os.path.join(os.path.dirname(__file__), 'assets', 'icon.ico') if '__file__' in globals() else 'assets/icon.ico'
         if os.path.exists(ico_path):
@@ -729,30 +576,24 @@ class BotGUI(QtWidgets.QWidget):
                 self.setWindowIcon(QtGui.QIcon(ico_path))
             except Exception:
                 pass
-
         self.init_ui()
         self.updater = QtCore.QTimer()
         self.updater.timeout.connect(self.refresh_status)
         self.updater.start(150)
-        
         # Start Roblox keepalive thread
         self.roblox_thread = threading.Thread(target=self.roblox_keepalive, daemon=True)
         self.roblox_thread.start()
-
         self.check_internet_status()
-
     def init_ui(self):
         dark = '#0b0b0b'
         panel = 'rgba(18,18,18,0.85)'
         gold = '#d4af37'
         soft_gold = '#ffd86a'
         text = '#f5f3f1'
-
         # Main layout with margins for rounded corners
         outer = QtWidgets.QVBoxLayout()
         outer.setContentsMargins(4, 4, 4, 4)
         outer.setSpacing(0)
-
         # Central frame with rounded corners
         self.central = QtWidgets.QFrame()
         self.central.setObjectName("central_frame")
@@ -765,7 +606,6 @@ class BotGUI(QtWidgets.QWidget):
         central_layout = QtWidgets.QVBoxLayout()
         central_layout.setContentsMargins(0, 0, 0, 10)
         central_layout.setSpacing(8)
-
         # Title bar with buttons
         self.title_bar = QtWidgets.QWidget()
         self.title_bar.setFixedHeight(40)
@@ -773,12 +613,10 @@ class BotGUI(QtWidgets.QWidget):
         title_layout = QtWidgets.QHBoxLayout()
         title_layout.setContentsMargins(12, 0, 12, 0)
         title_layout.setSpacing(8)
-
         title_label = QtWidgets.QLabel("AstraKeys — by SMisha2")
         title_label.setStyleSheet(f"font-weight:600; font-size:14px; color: {soft_gold};")
         title_layout.addWidget(title_label)
         title_layout.addStretch()
-
         self.btn_about = QtWidgets.QPushButton("?")
         self.btn_about.setFixedSize(30, 28)
         self.btn_about.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
@@ -796,7 +634,6 @@ class BotGUI(QtWidgets.QWidget):
         """)
         self.btn_about.setToolTip("О программе")
         title_layout.addWidget(self.btn_about)
-
         self.btn_min = QtWidgets.QPushButton("—")
         self.btn_min.setFixedSize(36, 28)
         self.btn_min.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
@@ -814,7 +651,6 @@ class BotGUI(QtWidgets.QWidget):
         """)
         self.btn_min.setToolTip("Свернуть")
         title_layout.addWidget(self.btn_min)
-
         self.btn_max = QtWidgets.QPushButton("□")
         self.btn_max.setFixedSize(36, 28)
         self.btn_max.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
@@ -832,7 +668,6 @@ class BotGUI(QtWidgets.QWidget):
         """)
         self.btn_max.setToolTip("Развернуть")
         title_layout.addWidget(self.btn_max)
-
         self.btn_close = QtWidgets.QPushButton("✕")
         self.btn_close.setFixedSize(36, 28)
         self.btn_close.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
@@ -850,20 +685,16 @@ class BotGUI(QtWidgets.QWidget):
         """)
         self.btn_close.setToolTip("Закрыть")
         title_layout.addWidget(self.btn_close)
-
         self.title_bar.setLayout(title_layout)
         central_layout.addWidget(self.title_bar)
-
         subtitle = QtWidgets.QLabel("Solar Gold · Black Onyx · Nebula")
         subtitle.setStyleSheet(f"color: {soft_gold}; font-size:12px; margin-left:14px;")
         central_layout.addWidget(subtitle)
-
         self.song_input = QtWidgets.QTextEdit()
         self.song_input.setPlaceholderText("Вставьте текст песни сюда и нажмите 'Добавить'")
         self.song_input.setFixedHeight(110)
         self.song_input.setStyleSheet(f"background: {panel}; border-radius:8px; padding:8px; color:{text};")
         central_layout.addWidget(self.song_input)
-
         add_row = QtWidgets.QHBoxLayout()
         self.add_btn = QtWidgets.QPushButton("Добавить песню")
         self.add_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
@@ -873,7 +704,6 @@ class BotGUI(QtWidgets.QWidget):
         add_row.addStretch()
         central_layout.addLayout(add_row)
         self.add_btn.clicked.connect(self.add_song_from_input)
-
         row = QtWidgets.QHBoxLayout()
         self.start_btn = QtWidgets.QPushButton("Start / Pause (F1)")
         self.next_btn = QtWidgets.QPushButton("Next Song (F8)")
@@ -885,7 +715,6 @@ class BotGUI(QtWidgets.QWidget):
             btn.setStyleSheet("border-radius:8px; border:1px solid rgba(212,175,55,0.08); background: transparent; color: %s;" % text)
             row.addWidget(btn)
         central_layout.addLayout(row)
-
         mid = QtWidgets.QHBoxLayout()
         leftcol = QtWidgets.QVBoxLayout()
         self.song_list = QtWidgets.QListWidget()
@@ -894,7 +723,6 @@ class BotGUI(QtWidgets.QWidget):
             self.song_list.addItem(f"{name} — {len(content)} chars")
         self.song_list.setCurrentRow(self.bot.song_index)
         leftcol.addWidget(self.song_list)
-
         list_controls = QtWidgets.QHBoxLayout()
         self.remove_btn = QtWidgets.QPushButton("Удалить")
         self.remove_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
@@ -910,9 +738,7 @@ class BotGUI(QtWidgets.QWidget):
         leftcol.addLayout(list_controls)
         self.remove_btn.clicked.connect(self.remove_selected)
         self.rename_btn.clicked.connect(self.rename_selected)
-
         mid.addLayout(leftcol, 2)
-
         right = QtWidgets.QVBoxLayout()
         self.status_label = QtWidgets.QLabel("Status: Idle")
         self.mode_label = QtWidgets.QLabel("Mode: 1")
@@ -920,15 +746,12 @@ class BotGUI(QtWidgets.QWidget):
         for lbl in (self.status_label, self.mode_label, self.pos_label):
             lbl.setStyleSheet("color: %s;" % text)
             right.addWidget(lbl)
-
         self.progress = QtWidgets.QProgressBar()
         self.progress.setValue(0)
         self.progress.setVisible(False)
         right.addWidget(self.progress)
-
         mid.addLayout(right, 1)
         central_layout.addLayout(mid)
-
         bottom = QtWidgets.QHBoxLayout()
         self.delay_slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
         self.delay_slider.setMinimum(0)
@@ -939,7 +762,6 @@ class BotGUI(QtWidgets.QWidget):
         bottom.addWidget(self.delay_label)
         bottom.addWidget(self.delay_slider)
         central_layout.addLayout(bottom)
-
         mode_row = QtWidgets.QHBoxLayout()
         self.mode_combo = QtWidgets.QComboBox()
         self.mode_combo.addItems(["1 - Ровный", "2 - Живой", "3 - Гибридный", "4 - Ошибочный (5%)"])
@@ -948,46 +770,37 @@ class BotGUI(QtWidgets.QWidget):
         mode_row.addWidget(QtWidgets.QLabel("Mode:"))
         mode_row.addWidget(self.mode_combo)
         central_layout.addLayout(mode_row)
-
         help_label = QtWidgets.QLabel("F1 Start/Pause | F2 Restart | F3 Skip25 | F4 Exit | F5 PrevMode | F6 Freeze | F7 NextMode | F8 NextSong | F10 Force Roblox")
         help_label.setStyleSheet("color: #9b9b9b;")
         central_layout.addWidget(help_label)
-
         # Update section
         update_layout = QtWidgets.QHBoxLayout()
         self.check_update_btn = QtWidgets.QPushButton("Проверить обновление")
         self.check_update_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self.check_update_btn.setFixedHeight(36)
         self.check_update_btn.setStyleSheet("border-radius:8px; border:1px solid rgba(212,175,55,0.12); background: transparent; color: %s;" % text)
-        
         self.download_btn = QtWidgets.QPushButton("Скачать последнюю версию")
         self.download_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self.download_btn.setFixedHeight(36)
         self.download_btn.setStyleSheet("border-radius:8px; border:1px solid rgba(212,175,55,0.12); background: transparent; color: %s;" % text)
-        
         update_layout.addWidget(self.check_update_btn)
         update_layout.addWidget(self.download_btn)
         central_layout.addLayout(update_layout)
         self.check_update_btn.clicked.connect(self.gui_check_update)
         self.download_btn.clicked.connect(self.open_releases_page)
-
         footer = QtWidgets.QHBoxLayout()
         self.signature = QtWidgets.QLabel("AstraKeys — by SMisha2")
         self.signature.setStyleSheet(f"color: {gold};")
-
         build_date = datetime.now().strftime("%d.%m.%Y")
         self.version_label = QtWidgets.QLabel(f"v{CURRENT_VERSION} · {build_date}")
         self.version_label.setStyleSheet("color: rgba(255,255,255,0.28); font-size: 11px; margin-right: 8px;")
-
         footer.addWidget(self.signature)
         footer.addStretch()
         footer.addWidget(self.version_label)
         central_layout.addLayout(footer)
-
         self.central.setLayout(central_layout)
         outer.addWidget(self.central)
         self.setLayout(outer)
-
         self.setStyleSheet(f"""
             QWidget {{ font-family: 'Segoe UI', Arial, sans-serif; }}
             QSlider::groove:horizontal{{height:8px; background: rgba(255,255,255,0.03); border-radius:4px;}}
@@ -996,13 +809,11 @@ class BotGUI(QtWidgets.QWidget):
             QProgressBar{{background: rgba(255,255,255,0.02); border-radius:8px; text-align:center;}}
             QProgressBar::chunk{{background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 {gold}, stop:1 {soft_gold}); border-radius:8px;}}
         """)
-
         # Connect signals for title bar buttons
         self.btn_close.clicked.connect(self.close)
         self.btn_min.clicked.connect(self.showMinimized)
         self.btn_max.clicked.connect(self.toggle_maximize)
         self.btn_about.clicked.connect(self.show_about)
-        
         # Connect other signals
         self.add_btn.clicked.connect(self.add_song_from_input)
         self.start_btn.clicked.connect(self.toggle_start)
@@ -1012,25 +823,20 @@ class BotGUI(QtWidgets.QWidget):
         self.song_list.itemDoubleClicked.connect(self.rename_selected)
         self.delay_slider.valueChanged.connect(self.delay_changed)
         self.mode_combo.currentIndexChanged.connect(self.mode_combo_changed)
-        
         # Enable mouse tracking for dragging
         self.setMouseTracking(True)
         self.central.setMouseTracking(True)
         self.title_bar.setMouseTracking(True)
-
     def toggle_maximize(self):
         if self.isMaximized():
             self.showNormal()
         else:
             self.showMaximized()
-
     def show_about(self):
         dialog = AboutDialog(self)
         dialog.exec()
-
     def open_releases_page(self):
         webbrowser.open(RELEASES_URL)
-
     def check_internet_status(self):
         def worker():
             try:
@@ -1038,7 +844,6 @@ class BotGUI(QtWidgets.QWidget):
             except:
                 pass
         threading.Thread(target=worker, daemon=True).start()
-
     def roblox_keepalive(self):
         """Keep Roblox window accessible without constant focus changes"""
         while True:
@@ -1047,7 +852,6 @@ class BotGUI(QtWidgets.QWidget):
                 time.sleep(5)
             except:
                 time.sleep(5)
-
     def mousePressEvent(self, event):
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             # FIXED: Check if click is in title bar area
@@ -1056,23 +860,19 @@ class BotGUI(QtWidgets.QWidget):
                 self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
                 event.accept()
         super().mousePressEvent(event)
-
     def mouseMoveEvent(self, event):
         if self.dragging and event.buttons() & QtCore.Qt.MouseButton.LeftButton:
             self.move(event.globalPosition().toPoint() - self.drag_position)
             event.accept()
         super().mouseMoveEvent(event)
-
     def mouseReleaseEvent(self, event):
         self.dragging = False
         super().mouseReleaseEvent(event)
-
     def mouseDoubleClickEvent(self, event):
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             if self.title_bar.geometry().contains(event.position().toPoint()):
                 self.toggle_maximize()
         super().mouseDoubleClickEvent(event)
-
     def add_song_from_input(self):
         text = self.song_input.toPlainText().strip()
         if text:
@@ -1084,7 +884,6 @@ class BotGUI(QtWidgets.QWidget):
             self.song_list.addItem(f"{name} — {len(sanitized)} chars")
             print(f"Song '{name}' added")
             self.song_input.clear()
-
     def remove_selected(self):
         row = self.song_list.currentRow()
         if 0 <= row < len(self.bot.playlist):
@@ -1095,7 +894,6 @@ class BotGUI(QtWidgets.QWidget):
             if self.bot.playlist:
                 self.bot.song_name, self.bot.song = self.bot.playlist[self.bot.song_index]
             self.song_list.setCurrentRow(self.bot.song_index)
-
     def rename_selected(self):
         row = self.song_list.currentRow()
         if 0 <= row < len(self.bot.playlist):
@@ -1107,34 +905,27 @@ class BotGUI(QtWidgets.QWidget):
                     self.bot.song_name = new_name.strip()
                 self.song_list.item(row).setText(f"{new_name.strip()} — {len(content)} chars")
                 print(f"Renamed song to '{new_name.strip()}'")
-
     def toggle_start(self):
         self.bot.playing = not self.bot.playing
         self.refresh_status()
-
     def next_song(self):
         self.bot.next_song()
         self.song_list.setCurrentRow(self.bot.song_index)
         self.refresh_status()
-
     def prev_mode(self):
         self.bot.mode = self.bot.mode - 1 if self.bot.mode > 1 else 4
         self.mode_combo.setCurrentIndex(self.bot.mode - 1)
         self.refresh_status()
-
     def next_mode(self):
         self.bot.mode = self.bot.mode + 1 if self.bot.mode < 4 else 1
         self.mode_combo.setCurrentIndex(self.bot.mode - 1)
         self.refresh_status()
-
     def delay_changed(self, val):
         self.bot.start_delay = val / 1000.0
         self.delay_label.setText(f"Start Delay: {self.bot.start_delay:.3f}s")
-
     def mode_combo_changed(self, idx):
         self.bot.mode = idx + 1
         self.refresh_status()
-
     def refresh_status(self):
         st = "Playing" if self.bot.playing else "Paused"
         self.status_label.setText(f"Status: {st}")
@@ -1148,13 +939,11 @@ class BotGUI(QtWidgets.QWidget):
             self.mode_combo.setCurrentIndex(self.bot.mode - 1)
         if self.song_list.currentRow() != self.bot.song_index:
             self.song_list.setCurrentRow(self.bot.song_index)
-
     def gui_check_update(self):
         self.check_update_btn.setEnabled(False)
         self.progress.setVisible(True)
         self.progress.setValue(0)
         threading.Thread(target=self._check_update_worker, daemon=True).start()
-
     def _check_update_worker(self):
         try:
             info, err = fetch_latest_release_info()
@@ -1173,12 +962,10 @@ class BotGUI(QtWidgets.QWidget):
                 self._show_message_box("Ошибка", "Не удалось определить номер версии релиза.")
                 self._update_ui_after_check(False)
                 return
-            
             if version_tuple(latest_version) <= version_tuple(CURRENT_VERSION):
                 self._show_message_box("Обновления", "Установлена последняя или более новая версия.")
                 self._update_ui_after_check(False)
                 return
-
             asset_url = None
             for a in info.get("assets", []):
                 if a.get("name") == ASSET_NAME:
@@ -1188,7 +975,6 @@ class BotGUI(QtWidgets.QWidget):
                 self._show_message_box("Обновления", "Обнаружена новая версия, но нужный файл не найден в релизе.")
                 self._update_ui_after_check(False)
                 return
-
             tmp_name = "AstraKeys_update_tmp.exe"
             def prog_cb(pct):
                 QtCore.QTimer.singleShot(0, lambda: self.progress.setValue(pct))
@@ -1202,7 +988,6 @@ class BotGUI(QtWidgets.QWidget):
                 except Exception:
                     pass
                 return
-
             is_frozen = getattr(sys, "frozen", False) or sys.argv[0].lower().endswith(".exe")
             try:
                 perform_replacement_and_restart(tmp_name, ASSET_NAME, is_frozen)
@@ -1212,13 +997,11 @@ class BotGUI(QtWidgets.QWidget):
                 return
         finally:
             QtCore.QTimer.singleShot(0, lambda: self._update_ui_after_check(False))
-
     def _update_ui_after_check(self, busy=True):
         self.check_update_btn.setEnabled(True)
         if not busy:
             self.progress.setVisible(False)
             self.progress.setValue(0)
-
     def _show_message_box(self, title, text):
         def show():
             mb = QtWidgets.QMessageBox(self)
@@ -1226,7 +1009,6 @@ class BotGUI(QtWidgets.QWidget):
             mb.setText(text)
             mb.exec()
         QtCore.QTimer.singleShot(0, show)
-
 # ---------------- Main runner ----------------
 if __name__ == "__main__":
     # Default playlist with named songs
@@ -1235,13 +1017,10 @@ if __name__ == "__main__":
         ("Minecraft Theme", r"l--l--l--l-lzlk"),
         ("Twinkle Twinkle", r"fffff[4qf]spsfspsg"),
     ]
-
     bot = RobloxPianoBot(default_playlist)
     player_thread = threading.Thread(target=bot.play_song, daemon=True)
     player_thread.start()
-
     app = QtWidgets.QApplication(sys.argv)
-
     # load Montserrat font if available
     try:
         font_db = QtGui.QFontDatabase()
@@ -1251,8 +1030,6 @@ if __name__ == "__main__":
                 font_db.addApplicationFont(local_ttf)
     except Exception:
         pass
-
     gui = BotGUI(bot)
     gui.show()
-
     sys.exit(app.exec())
