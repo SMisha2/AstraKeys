@@ -1,7 +1,7 @@
-# AstraKeys_v1.1.9 — Black Onyx / Solar Gold / Nebula blend
+# AstraKeys_v1.1.5 — Black Onyx / Solar Gold / Nebula blend
 # by SMisha2
 # Features: Fixed freeze mode, working chords and pedal, instant mode 1, smooth operation
-CURRENT_VERSION = "1.1.9"
+CURRENT_VERSION = "1.1.5"
 GITHUB_OWNER = "SMisha2"
 GITHUB_REPO = "AstraKeys"
 ASSET_NAME = "AstraKeys.exe"
