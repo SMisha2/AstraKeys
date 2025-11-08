@@ -20,12 +20,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pyinstaller
           pip install pyqt6
-          pip install pynput
-          pip install requests
-          pip install pywin32
           pip install mido pyperclip psutil
+          pip install pyinstaller pywin32 pynput requests PyQt6
 
 
       - name: Build EXE
