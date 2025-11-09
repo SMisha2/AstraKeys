@@ -47,13 +47,13 @@ RU_EN_MAPPING = {
     'я': 'z', 'ч': 'x', 'с': 'c', 'м': 'v', 'и': 'b', 'т': 'n', 'ь': 'm', 'б': ',', 'ю': '.', 'ё': '`'
 }
 EN_RU_MAPPING = {v: k for k, v in RU_EN_MAPPING.items()}
-ROBLOX_KEYS = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@$%^*()_+-=[]{};':\",./<>?\\|`~&"
+ROBLOX_KEYS = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@$%^*(";%:*("
 # ---------------- Keyboard helpers ----------------
 def is_valid_key(key):
     """Check if key is valid for pynput"""
     if not key or not isinstance(key, str) or len(key) != 1:
         return False
-    return key.isalnum() or key in "!@#$%^&*()_+-=[]{};':\",./<>?\\|`~"
+    return key.isalnum() or key in "!@$%^*(";%:*"
 # ---------------- Auto-update helpers ----------------
 def download_asset_to_file(url, dest_path, progress_callback=None, max_retries=3):
     for attempt in range(max_retries):
