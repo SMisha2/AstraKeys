@@ -1,7 +1,8 @@
-# AstraKeys_v1.1.5 — Black Onyx / Solar Gold / Nebula blend
+# AstraKeys_v1.6.0 — Black Onyx / Solar Gold / Nebula blend
 # by SMisha2
-# Features: Fixed freeze mode, working chords and pedal, instant mode 1, smooth operation
-CURRENT_VERSION = "1.1.5"
+# Features: Russian keyboard support, adjustable error mode, resizable window, overlay note display with transparency and fullscreen
+# Deepseek used for comment code and put in order
+CURRENT_VERSION = "1.1.6"
 GITHUB_OWNER = "SMisha2"
 GITHUB_REPO = "AstraKeys"
 ASSET_NAME = "AstraKeys.exe"
@@ -16,6 +17,7 @@ import random
 from datetime import datetime
 import webbrowser
 import subprocess
+import json
 # optional win32
 try:
     import win32gui
@@ -39,7 +41,13 @@ except Exception:
     raise RuntimeError("PyQt6 is required. Install via: pip install PyQt6")
 # ---------------- constants ----------------
 PEDAL_KEYS = {"*", "[", "]"}
-ROBLOX_KEYS = "1234567890qwertyuiopasdfghjklzxcvbnm"
+RU_EN_MAPPING = {
+    'й': 'q', 'ц': 'w', 'у': 'e', 'к': 'r', 'е': 't', 'н': 'y', 'г': 'u', 'ш': 'i', 'щ': 'o', 'з': 'p', 'х': '[', 'ъ': ']',
+    'ф': 'a', 'ы': 's', 'в': 'd', 'а': 'f', 'п': 'g', 'р': 'h', 'о': 'j', 'л': 'k', 'д': 'l', 'ж': ';', 'э': '\'',
+    'я': 'z', 'ч': 'x', 'с': 'c', 'м': 'v', 'и': 'b', 'т': 'n', 'ь': 'm', 'б': ',', 'ю': '.', 'ё': '`'
+}
+EN_RU_MAPPING = {v: k for k, v in RU_EN_MAPPING.items()}
+ROBLOX_KEYS = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@$%^*()_+-=[]{};':\",./<>?\\|`~&"
 # ---------------- Keyboard helpers ----------------
 def is_valid_key(key):
     """Check if key is valid for pynput"""
@@ -186,6 +194,252 @@ def bring_roblox_to_front():
         except:
             pass
     return False
+# ---------------- Note Overlay Window ----------------
+class NoteOverlayWindow(QtWidgets.QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowFlags(
+            QtCore.Qt.WindowType.WindowStaysOnTopHint |
+            QtCore.Qt.WindowType.FramelessWindowHint |
+            QtCore.Qt.WindowType.Tool
+        )
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        
+        # Default properties
+        self.is_fullscreen = False
+        self.opacity = 0.9
+        self.font_size = 24
+        self.bg_color = "#0a0a0a"
+        self.text_color = "#ffd86a"
+        self.highlight_color = "#ffd86a"
+        self.highlight_bg = "rgba(255,216,106,0.3)"
+        
+        # Setup UI
+        self.init_ui()
+        
+        # Load settings
+        self.load_settings()
+        self.apply_settings()
+        
+        # Default size and position
+        screen = QtWidgets.QApplication.primaryScreen().geometry()
+        self.resize(400, 150)
+        self.move(screen.width() // 2 - self.width() // 2, screen.height() - self.height() - 100)
+        
+    def init_ui(self):
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(15, 10, 15, 10)
+        layout.setSpacing(5)
+        
+        # Title bar with controls
+        title_bar = QtWidgets.QWidget()
+        title_bar_layout = QtWidgets.QHBoxLayout(title_bar)
+        title_bar_layout.setContentsMargins(0, 0, 0, 0)
+        
+        title_label = QtWidgets.QLabel("AstraKeys Notes")
+        title_label.setStyleSheet("color: #ffd86a; font-weight: bold;")
+        
+        self.pin_btn = QtWidgets.QPushButton("📌")
+        self.pin_btn.setFixedSize(30, 30)
+        self.pin_btn.setStyleSheet("background: transparent; border: none; color: #ccc;")
+        self.pin_btn.setToolTip("Закрепить/открепить окно")
+        
+        self.opacity_btn = QtWidgets.QPushButton("👁️")
+        self.opacity_btn.setFixedSize(30, 30)
+        self.opacity_btn.setStyleSheet("background: transparent; border: none; color: #ccc;")
+        self.opacity_btn.setToolTip("Настроить прозрачность")
+        
+        self.fullscreen_btn = QtWidgets.QPushButton("❐")
+        self.fullscreen_btn.setFixedSize(30, 30)
+        self.fullscreen_btn.setStyleSheet("background: transparent; border: none; color: #ccc;")
+        self.fullscreen_btn.setToolTip("Полноэкранный режим")
+        
+        self.close_btn = QtWidgets.QPushButton("✕")
+        self.close_btn.setFixedSize(30, 30)
+        self.close_btn.setStyleSheet("background: transparent; border: none; color: #ccc;")
+        self.close_btn.setToolTip("Закрыть")
+        
+        title_bar_layout.addWidget(title_label)
+        title_bar_layout.addStretch()
+        title_bar_layout.addWidget(self.pin_btn)
+        title_bar_layout.addWidget(self.opacity_btn)
+        title_bar_layout.addWidget(self.fullscreen_btn)
+        title_bar_layout.addWidget(self.close_btn)
+        
+        # Note display area
+        self.note_display = QtWidgets.QTextEdit()
+        self.note_display.setReadOnly(True)
+        self.note_display.setStyleSheet("""
+            QTextEdit {
+                background: transparent;
+                border: none;
+                color: #ffd86a;
+                font-family: 'Courier New', monospace;
+                font-size: 24px;
+            }
+        """)
+        self.note_display.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.note_display.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.note_display.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        
+        layout.addWidget(title_bar)
+        layout.addWidget(self.note_display)
+        
+        # Connect buttons
+        self.pin_btn.clicked.connect(self.toggle_pin)
+        self.opacity_btn.clicked.connect(self.show_opacity_menu)
+        self.fullscreen_btn.clicked.connect(self.toggle_fullscreen)
+        self.close_btn.clicked.connect(self.hide)
+        
+        # Enable dragging
+        self.dragging = False
+        self.drag_position = None
+        self.title_bar = title_bar
+        
+    def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            if self.title_bar.geometry().contains(event.position().toPoint()):
+                self.dragging = True
+                self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+                event.accept()
+        super().mousePressEvent(event)
+    
+    def mouseMoveEvent(self, event):
+        if self.dragging and event.buttons() & QtCore.Qt.MouseButton.LeftButton:
+            self.move(event.globalPosition().toPoint() - self.drag_position)
+            event.accept()
+        super().mouseMoveEvent(event)
+    
+    def mouseReleaseEvent(self, event):
+        self.dragging = False
+        super().mouseReleaseEvent(event)
+    
+    def toggle_pin(self):
+        flags = self.windowFlags()
+        if flags & QtCore.Qt.WindowType.WindowStaysOnTopHint:
+            self.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, False)
+            self.pin_btn.setText("◻️")
+        else:
+            self.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, True)
+            self.pin_btn.setText("📌")
+        self.show()
+    
+    def toggle_fullscreen(self):
+        if self.is_fullscreen:
+            self.showNormal()
+            self.is_fullscreen = False
+            self.fullscreen_btn.setText("❐")
+        else:
+            self.showFullScreen()
+            self.is_fullscreen = True
+            self.fullscreen_btn.setText("❐")
+    
+    def show_opacity_menu(self):
+        menu = QtWidgets.QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #1a1a1a;
+                color: #f5f3f1;
+                border: 1px solid #d4af37;
+            }
+            QMenu::item:selected {
+                background-color: #2a2a2a;
+            }
+        """)
+        
+        # Opacity options
+        opacities = [10, 30, 50, 70, 90, 100]
+        for opacity in opacities:
+            action = menu.addAction(f"{opacity}%")
+            action.setData(opacity / 100)
+        
+        action = menu.exec(self.opacity_btn.mapToGlobal(QtCore.QPoint(0, self.opacity_btn.height())))
+        if action:
+            self.opacity = action.data()
+            self.setWindowOpacity(self.opacity)
+    
+    def update_notes(self, song, current_pos, lines=4, chars_per_line=30):
+        if not song or current_pos >= len(song):
+            self.note_display.setPlainText("")
+            return
+        
+        # Get the portion of the song to display
+        end_pos = min(len(song), current_pos + lines * chars_per_line)
+        display_text = song[current_pos:end_pos]
+        
+        # Split into lines
+        lines_text = []
+        for i in range(0, len(display_text), chars_per_line):
+            line = display_text[i:i+chars_per_line]
+            lines_text.append(line)
+        
+        # Highlight current position
+        current_line = 0
+        char_in_line = current_pos % chars_per_line
+        
+        # Create HTML with highlighting
+        html_content = ""
+        for i, line in enumerate(lines_text):
+            if i == current_line and char_in_line < len(line):
+                # Split line at current position
+                before = line[:char_in_line]
+                current = line[char_in_line]
+                after = line[char_in_line+1:]
+                
+                # Highlight current character
+                html_content += f'<span style="color:{self.text_color}">{before}</span>'
+                html_content += f'<span style="background-color:{self.highlight_bg}; color:{self.highlight_color}; font-weight:bold; padding:0 1px; border-radius:2px">{current}</span>'
+                html_content += f'<span style="color:{self.text_color}">{after}</span><br>'
+            else:
+                html_content += f'<span style="color:{self.text_color}">{line}</span><br>'
+        
+        self.note_display.setHtml(html_content.rstrip("<br>"))
+    
+    def apply_settings(self):
+        self.setWindowOpacity(self.opacity)
+        self.note_display.setStyleSheet(f"""
+            QTextEdit {{
+                background: {self.bg_color};
+                border: none;
+                color: {self.text_color};
+                font-family: 'Courier New', monospace;
+                font-size: {self.font_size}px;
+            }}
+        """)
+    
+    def load_settings(self):
+        try:
+            if os.path.exists("overlay_settings.json"):
+                with open("overlay_settings.json", "r", encoding="utf-8") as f:
+                    settings = json.load(f)
+                    self.opacity = settings.get("opacity", self.opacity)
+                    self.font_size = settings.get("font_size", self.font_size)
+                    self.bg_color = settings.get("bg_color", self.bg_color)
+                    self.text_color = settings.get("text_color", self.text_color)
+                    self.highlight_color = settings.get("highlight_color", self.highlight_color)
+                    self.highlight_bg = settings.get("highlight_bg", self.highlight_bg)
+        except Exception as e:
+            print(f"Error loading overlay settings: {e}")
+    
+    def save_settings(self):
+        settings = {
+            "opacity": self.opacity,
+            "font_size": self.font_size,
+            "bg_color": self.bg_color,
+            "text_color": self.text_color,
+            "highlight_color": self.highlight_color,
+            "highlight_bg": self.highlight_bg
+        }
+        try:
+            with open("overlay_settings.json", "w", encoding="utf-8") as f:
+                json.dump(settings, f, indent=2)
+        except Exception as e:
+            print(f"Error saving overlay settings: {e}")
+    
+    def closeEvent(self, event):
+        self.save_settings()
+        event.accept()
 # ---------------- Bot core ----------------
 class RobloxPianoBot:
     def __init__(self, playlist_with_names, bpm=100):
@@ -210,21 +464,37 @@ class RobloxPianoBot:
         self.freeze_note = False
         self.frozen_note_index = 0
         self.mode = 1
+        self.error_rate = 0.05  # Default 5% error rate
         self.start_delay = 0.03
         self.active_keys = set()
         self.last_played_time = time.time()
+        self.overlay_window = None
         print("🎹 AstraKeys Bot initialized")
         print("▶ F1 Play/Pause | F2 Restart | F3 Skip25 | F4 Exit")
-        print("⭐ * - Pedal | F6 Freeze Note | F7 Next Mode | F5 Prev Mode | F8 Next Song | F10 Force Roblox")
+        print("⭐ * - Pedal | F6 Freeze Note | F7 Next Mode | F5 Prev Mode | F8 Next Song | F10 Force Roblox | F11 Toggle Overlay")
         if Listener:
             threading.Thread(target=self.listen_keys, daemon=True).start()
+    
+    def set_overlay_window(self, window):
+        self.overlay_window = window
+    
     def sanitize_song(self, song):
         if not song:
             return ""
-        white = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"
-        black = "!@$%^*()_+-=[]{};':\",./<>?\\|`~&"
-        allowed = white + black + " \t\n\r"
-        return ''.join(ch for ch in song if ch in allowed)
+        return ''.join(ch for ch in song if ch in ROBLOX_KEYS + " \t\n\r")
+    
+    def convert_to_english(self, key):
+        """Convert Russian key to English equivalent for Roblox"""
+        if not key or not isinstance(key, str) or len(key) != 1:
+            return key
+        lower_key = key.lower()
+        if lower_key in RU_EN_MAPPING:
+            # Preserve case
+            if key.isupper():
+                return RU_EN_MAPPING[lower_key].upper()
+            return RU_EN_MAPPING[lower_key]
+        return key
+    
     def is_key_valid(self, key):
         """Check if key can be pressed safely"""
         if not key or not isinstance(key, str):
@@ -233,10 +503,12 @@ class RobloxPianoBot:
         if key in problematic:
             return False
         return True
+    
     def press_key(self, key):
         with self.lock:
             if not self.keyboard:
                 return
+            key = self.convert_to_english(key)
             if not self.is_key_valid(key):
                 return
             if key not in self.active_keys:
@@ -245,10 +517,12 @@ class RobloxPianoBot:
                     self.active_keys.add(key)
                 except Exception as e:
                     print(f"Error pressing key '{key}': {e}")
+    
     def release_key(self, key):
         with self.lock:
             if not self.keyboard:
                 return
+            key = self.convert_to_english(key)
             if not self.is_key_valid(key):
                 return
             if key in self.active_keys:
@@ -257,6 +531,7 @@ class RobloxPianoBot:
                     self.active_keys.discard(key)
                 except Exception as e:
                     print(f"Error releasing key '{key}': {e}")
+    
     def release_all(self):
         with self.lock:
             if not self.keyboard:
@@ -268,25 +543,25 @@ class RobloxPianoBot:
                 except:
                     pass
             self.active_keys.clear()
+    
     def apply_error(self, k):
         try:
             if len(k) != 1:
                 return k
-            c = k.lower()
-            if c not in ROBLOX_KEYS:
+            c = self.convert_to_english(k).lower()
+            if c not in ROBLOX_KEYS.lower():
                 return k
             if c in ["1", "m"]:
                 return k
-            if random.random() < 0.05:
-                i = ROBLOX_KEYS.index(c)
-                if i == 0:
-                    return ROBLOX_KEYS[1]
-                if i == len(ROBLOX_KEYS) - 1:
-                    return ROBLOX_KEYS[-2]
-                return ROBLOX_KEYS[i + random.choice([-1, 1])]
+            if random.random() < self.error_rate:
+                all_keys = [ch for ch in ROBLOX_KEYS.lower() if ch.isalnum()]
+                if not all_keys:
+                    return k
+                return random.choice(all_keys)
             return k
         except:
             return k
+    
     def listen_keys(self):
         def on_press(key):
             try:
@@ -336,6 +611,12 @@ class RobloxPianoBot:
                     self.next_song()
                 elif key == Key.f10:
                     activate_roblox_window()
+                elif key == Key.f11:
+                    if self.overlay_window:
+                        if self.overlay_window.isVisible():
+                            self.overlay_window.hide()
+                        else:
+                            self.overlay_window.show()
                 # Check for pedal keys including brackets
                 elif (key_char in PEDAL_KEYS) or is_bracket:
                     self.hold_star = True
@@ -344,6 +625,7 @@ class RobloxPianoBot:
             except Exception as e:
                 print(f"Error in on_press: {e}")
                 pass
+        
         def on_release(key):
             try:
                 # Enhanced bracket detection for release too
@@ -366,11 +648,13 @@ class RobloxPianoBot:
             except Exception as e:
                 print(f"Error in on_release: {e}")
                 pass
+        
         try:
             with Listener(on_press=on_press, on_release=on_release) as listener:
                 listener.join()
         except Exception as e:
             print("Listener failed:", e)
+    
     def next_song(self):
         old_index = self.song_index
         n = len(self.playlist)
@@ -383,6 +667,7 @@ class RobloxPianoBot:
                 print(f"Next song: {self.song_name} ({self.song_index+1}/{n})")
                 return
         self.song_index = old_index
+    
     def play_chord(self, chord):
         """Play chord with mode-specific timing"""
         if self.mode == 4:
@@ -412,6 +697,7 @@ class RobloxPianoBot:
                 press_threads.append(t_press)
             max_press_time = base_press_delay + (len(chord) * 0.003) + 0.002
             time.sleep(max_press_time)
+    
     def release_chord(self, chord):
         """Release chord with mode-specific timing"""
         if not chord:
@@ -436,12 +722,18 @@ class RobloxPianoBot:
         else:
             for k in chord:
                 self.release_key(k)
+    
     def play_song(self):
         time.sleep(0.5)
         last_pedal_state = False
         current_chord = None
         while True:
             try:
+                # Update overlay if needed
+                if self.overlay_window and self.overlay_window.isVisible():
+                    current_pos = self.frozen_note_index if self.freeze_note else self.note_index
+                    self.overlay_window.update_notes(self.song, current_pos)
+                
                 if self.restart:
                     self.restart = False
                     self.note_index = 0
@@ -453,21 +745,26 @@ class RobloxPianoBot:
                         time.sleep(0.01)
                     time.sleep(0.1)
                     continue
+                
                 if not self.playing:
                     time.sleep(0.05)
                     continue
+                
                 # Handle F6 freeze
                 current_index = self.frozen_note_index if self.freeze_note else self.note_index
                 if current_index >= len(self.song):
                     time.sleep(0.05)
                     continue
+                
                 char = self.song[current_index]
+                
                 # Skip whitespace
                 if char.isspace():
                     if not self.freeze_note:
                         self.note_index += 1
                     time.sleep(0.01)
                     continue
+                
                 # Handle F3 Skip25
                 if self.skip_notes > 0 and not self.freeze_note:
                     if char == "[":
@@ -480,10 +777,12 @@ class RobloxPianoBot:
                         self.note_index += 1
                     self.skip_notes -= 1
                     continue
+                
                 # Wait for pedal press to play next note/chord
                 if not self.hold_star:
                     time.sleep(0.01)
                     continue
+                
                 # Parse chord or single note
                 if char == "[":
                     end = self.song.find("]", current_index)
@@ -507,23 +806,29 @@ class RobloxPianoBot:
                 # Activate Roblox before playing
                 bring_roblox_to_front()
                 time.sleep(0.01)  # Small delay to ensure window is active
+                
                 # Apply start delay if set
                 if self.start_delay > 0:
                     time.sleep(self.start_delay)
+                
                 # Play the chord
                 self.play_chord(chord)
                 current_chord = chord
                 print(f"Played: {chord} at pos {current_index}")
+                
                 # Keep holding the chord while pedal is pressed
                 while self.hold_star and self.playing and not self.restart:
                     time.sleep(0.01)
+                
                 # Release the chord when pedal is released
                 if current_chord:
                     self.release_chord(current_chord)
                     current_chord = None
+                
                 # Move to next note only if not frozen
                 if not self.freeze_note:
                     self.note_index = next_index
+                
                 time.sleep(0.001)
             except Exception as e:
                 print("Main loop error:", e)
@@ -533,7 +838,7 @@ class AboutDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("О программе — AstraKeys")
-        self.setFixedSize(400, 300)
+        self.setFixedSize(400, 340)
         self.setStyleSheet("""
             QDialog {
                 background: #0b0b0b;
@@ -562,16 +867,23 @@ class AboutDialog(QtWidgets.QDialog):
             QPushButton:hover {
                 background: #252525;
             }
+            QLabel.new_features {
+                color: #5fd7ff;
+                margin-top: 10px;
+            }
         """)
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(15)
+        layout.setSpacing(12)
+        
         title = QtWidgets.QLabel("AstraKeys")
         title.setProperty("class", "title")
         layout.addWidget(title, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+        
         version = QtWidgets.QLabel(f"Версия: {CURRENT_VERSION}")
         version.setStyleSheet("color: #9b9b9b;")
         layout.addWidget(version, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+        
         desc = QtWidgets.QLabel(
             "Программа для игры на пианино в Roblox\n"
             "Поддерживает чёрные и белые клавиши,\n"
@@ -579,18 +891,34 @@ class AboutDialog(QtWidgets.QDialog):
         )
         desc.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(desc)
+        
+        # New features section
+        new_features = QtWidgets.QLabel(
+            "Новые возможности:\n"
+            "- Поддержка русской раскладки\n"
+            "- Настраиваемый режим ошибок\n"
+            "- Окно с отображением нот (F11)\n"
+            "- Изменяемый размер окна\n"
+            "- Настройка прозрачности"
+        )
+        new_features.setProperty("class", "new_features")
+        layout.addWidget(new_features)
+        
         link = QtWidgets.QLabel(f'<a href="{RELEASES_URL}" style="color:#7aa7ff;text-decoration:underline;">{RELEASES_URL}</a>')
         link.setOpenExternalLinks(True)
         link.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(link)
+        
         author = QtWidgets.QLabel("Автор: SMisha2")
         author.setStyleSheet("color: #d4af37;")
         author.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(author)
+        
         btn = QtWidgets.QPushButton("Закрыть")
         btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         btn.clicked.connect(self.accept)
         layout.addWidget(btn)
+        
         self.setLayout(layout)
 # ---------------- GUI ----------------
 class BotGUI(QtWidgets.QWidget):
@@ -598,18 +926,24 @@ class BotGUI(QtWidgets.QWidget):
         super().__init__()
         self.bot = bot
         self.setWindowTitle("AstraKeys — by SMisha2")
-        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
-        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setWindowFlags(QtCore.Qt.WindowType.Window)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, False)
+        
         # Default size and position
         screen = QtWidgets.QApplication.primaryScreen().availableGeometry()
-        default_width = 700
-        default_height = 550  # Slightly increased height for the new display area
+        default_width = 750
+        default_height = 580
         x = (screen.width() - default_width) // 2
         y = (screen.height() - default_height) // 2
         self.setGeometry(x, y, default_width, default_height)
+        
+        # Load window state
+        self.load_window_state()
+        
         # Dragging variables
         self.dragging = False
         self.drag_position = None
+        
         # load icon if available
         ico_path = os.path.join(os.path.dirname(__file__), 'assets', 'icon.ico') if '__file__' in globals() else 'assets/icon.ico'
         if os.path.exists(ico_path):
@@ -617,36 +951,44 @@ class BotGUI(QtWidgets.QWidget):
                 self.setWindowIcon(QtGui.QIcon(ico_path))
             except Exception:
                 pass
+        
         self.init_ui()
         self.updater = QtCore.QTimer()
         self.updater.timeout.connect(self.refresh_status)
         self.updater.start(150)
+        
         # Start Roblox keepalive thread
         self.roblox_thread = threading.Thread(target=self.roblox_keepalive, daemon=True)
         self.roblox_thread.start()
+        
         self.check_internet_status()
+    
     def init_ui(self):
         dark = '#0b0b0b'
         panel = 'rgba(18,18,18,0.85)'
         gold = '#d4af37'
         soft_gold = '#ffd86a'
         text = '#f5f3f1'
-        # Main layout with margins for rounded corners
-        outer = QtWidgets.QVBoxLayout()
-        outer.setContentsMargins(4, 4, 4, 4)
-        outer.setSpacing(0)
+        
+        # Main layout
+        main_layout = QtWidgets.QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
         # Central frame with rounded corners
         self.central = QtWidgets.QFrame()
         self.central.setObjectName("central_frame")
         self.central.setStyleSheet(f"""
             QFrame#central_frame {{
                 background: {dark};
-                border-radius: 12px;
+                border-radius: 8px;
             }}
         """)
+        
         central_layout = QtWidgets.QVBoxLayout()
-        central_layout.setContentsMargins(0, 0, 0, 10)
+        central_layout.setContentsMargins(15, 10, 15, 15)
         central_layout.setSpacing(8)
+        
         # Title bar with buttons
         self.title_bar = QtWidgets.QWidget()
         self.title_bar.setFixedHeight(40)
@@ -654,10 +996,12 @@ class BotGUI(QtWidgets.QWidget):
         title_layout = QtWidgets.QHBoxLayout()
         title_layout.setContentsMargins(12, 0, 12, 0)
         title_layout.setSpacing(8)
+        
         title_label = QtWidgets.QLabel("AstraKeys — by SMisha2")
         title_label.setStyleSheet(f"font-weight:600; font-size:14px; color: {soft_gold};")
         title_layout.addWidget(title_label)
         title_layout.addStretch()
+        
         self.btn_about = QtWidgets.QPushButton("?")
         self.btn_about.setFixedSize(30, 28)
         self.btn_about.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
@@ -675,6 +1019,7 @@ class BotGUI(QtWidgets.QWidget):
         """)
         self.btn_about.setToolTip("О программе")
         title_layout.addWidget(self.btn_about)
+        
         self.btn_min = QtWidgets.QPushButton("—")
         self.btn_min.setFixedSize(36, 28)
         self.btn_min.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
@@ -692,10 +1037,11 @@ class BotGUI(QtWidgets.QWidget):
         """)
         self.btn_min.setToolTip("Свернуть")
         title_layout.addWidget(self.btn_min)
-        self.btn_max = QtWidgets.QPushButton("□")
-        self.btn_max.setFixedSize(36, 28)
-        self.btn_max.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
-        self.btn_max.setStyleSheet(f"""
+        
+        self.btn_restore = QtWidgets.QPushButton("❐")
+        self.btn_restore.setFixedSize(36, 28)
+        self.btn_restore.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.btn_restore.setStyleSheet(f"""
             QPushButton {{
                 border: none;
                 background: transparent;
@@ -707,8 +1053,9 @@ class BotGUI(QtWidgets.QWidget):
                 background: rgba(212,175,55,0.08);
             }}
         """)
-        self.btn_max.setToolTip("Развернуть")
-        title_layout.addWidget(self.btn_max)
+        self.btn_restore.setToolTip("Развернуть/Восстановить")
+        title_layout.addWidget(self.btn_restore)
+        
         self.btn_close = QtWidgets.QPushButton("✕")
         self.btn_close.setFixedSize(36, 28)
         self.btn_close.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
@@ -726,16 +1073,18 @@ class BotGUI(QtWidgets.QWidget):
         """)
         self.btn_close.setToolTip("Закрыть")
         title_layout.addWidget(self.btn_close)
+        
         self.title_bar.setLayout(title_layout)
         central_layout.addWidget(self.title_bar)
+        
         subtitle = QtWidgets.QLabel("Solar Gold · Black Onyx · Nebula")
         subtitle.setStyleSheet(f"color: {soft_gold}; font-size:12px; margin-left:14px;")
         central_layout.addWidget(subtitle)
         
-        # Song progress display (new feature)
+        # Song progress display
         self.song_display = QtWidgets.QTextEdit()
         self.song_display.setReadOnly(True)
-        self.song_display.setFixedHeight(70)  # Height for about 2 lines of text
+        self.song_display.setMinimumHeight(80)
         self.song_display.setStyleSheet(f"""
             QTextEdit {{
                 background: {panel};
@@ -743,7 +1092,7 @@ class BotGUI(QtWidgets.QWidget):
                 padding:8px;
                 color:{text};
                 font-family: 'Courier New', monospace;
-                font-size: 12px;
+                font-size: 13px;
             }}
             QTextEdit:hover {{
                 border: 1px solid {gold};
@@ -753,9 +1102,10 @@ class BotGUI(QtWidgets.QWidget):
         
         self.song_input = QtWidgets.QTextEdit()
         self.song_input.setPlaceholderText("Вставьте текст песни сюда и нажмите 'Добавить'")
-        self.song_input.setFixedHeight(110)
+        self.song_input.setMinimumHeight(100)
         self.song_input.setStyleSheet(f"background: {panel}; border-radius:8px; padding:8px; color:{text};")
         central_layout.addWidget(self.song_input)
+        
         add_row = QtWidgets.QHBoxLayout()
         self.add_btn = QtWidgets.QPushButton("Добавить песню")
         self.add_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
@@ -765,18 +1115,24 @@ class BotGUI(QtWidgets.QWidget):
         add_row.addStretch()
         central_layout.addLayout(add_row)
         self.add_btn.clicked.connect(self.add_song_from_input)
-        row = QtWidgets.QHBoxLayout()
+        
+        control_row = QtWidgets.QHBoxLayout()
         self.start_btn = QtWidgets.QPushButton("Start / Pause (F1)")
         self.next_btn = QtWidgets.QPushButton("Next Song (F8)")
         self.prev_mode_btn = QtWidgets.QPushButton("Prev Mode (F5)")
         self.next_mode_btn = QtWidgets.QPushButton("Next Mode (F7)")
+        
         for btn in (self.start_btn, self.next_btn, self.prev_mode_btn, self.next_mode_btn):
             btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
             btn.setFixedHeight(36)
             btn.setStyleSheet("border-radius:8px; border:1px solid rgba(212,175,55,0.08); background: transparent; color: %s;" % text)
-            row.addWidget(btn)
-        central_layout.addLayout(row)
+            control_row.addWidget(btn)
+        
+        central_layout.addLayout(control_row)
+        
         mid = QtWidgets.QHBoxLayout()
+        
+        # Left column - song list
         leftcol = QtWidgets.QVBoxLayout()
         self.song_list = QtWidgets.QListWidget()
         self.song_list.setStyleSheet(f"background: {panel}; border-radius:10px; padding:6px; color:{text};")
@@ -784,71 +1140,126 @@ class BotGUI(QtWidgets.QWidget):
             self.song_list.addItem(f"{name} — {len(content)} chars")
         self.song_list.setCurrentRow(self.bot.song_index)
         leftcol.addWidget(self.song_list)
+        
         list_controls = QtWidgets.QHBoxLayout()
         self.remove_btn = QtWidgets.QPushButton("Удалить")
         self.remove_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self.remove_btn.setFixedHeight(30)
         self.remove_btn.setStyleSheet("border-radius:6px; border:1px solid rgba(212,175,55,0.08); background: transparent; color: %s;" % text)
+        
         self.rename_btn = QtWidgets.QPushButton("Переименовать")
         self.rename_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self.rename_btn.setFixedHeight(30)
         self.rename_btn.setStyleSheet("border-radius:6px; border:1px solid rgba(212,175,55,0.08); background: transparent; color: %s;" % text)
+        
         list_controls.addWidget(self.remove_btn)
         list_controls.addWidget(self.rename_btn)
         list_controls.addStretch()
         leftcol.addLayout(list_controls)
-        self.remove_btn.clicked.connect(self.remove_selected)
-        self.rename_btn.clicked.connect(self.rename_selected)
+        
+        self.overlay_btn = QtWidgets.QPushButton("Показать/Скрыть окно нот (F11)")
+        self.overlay_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.overlay_btn.setFixedHeight(36)
+        self.overlay_btn.setStyleSheet("border-radius:8px; border:1px solid rgba(212,175,55,0.12); background: transparent; color: %s;" % text)
+        leftcol.addWidget(self.overlay_btn)
+        
         mid.addLayout(leftcol, 2)
+        
+        # Right column - status
         right = QtWidgets.QVBoxLayout()
         self.status_label = QtWidgets.QLabel("Status: Idle")
         self.mode_label = QtWidgets.QLabel("Mode: 1")
         self.pos_label = QtWidgets.QLabel(f"Pos: 0/{len(self.bot.song)}")
-        for lbl in (self.status_label, self.mode_label, self.pos_label):
+        self.error_rate_label = QtWidgets.QLabel(f"Error Rate: {self.bot.error_rate*100:.0f}%")
+        
+        for lbl in (self.status_label, self.mode_label, self.pos_label, self.error_rate_label):
             lbl.setStyleSheet("color: %s;" % text)
             right.addWidget(lbl)
+        
+        # Error rate slider
+        error_layout = QtWidgets.QHBoxLayout()
+        error_layout.addWidget(QtWidgets.QLabel("Error Rate:"))
+        self.error_slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
+        self.error_slider.setMinimum(0)
+        self.error_slider.setMaximum(20)
+        self.error_slider.setValue(int(self.bot.error_rate * 100))
+        self.error_slider.setStyleSheet(f"""
+            QSlider::groove:horizontal {{
+                height: 6px;
+                background: rgba(255,255,255,0.03);
+                border-radius: 3px;
+            }}
+            QSlider::handle:horizontal {{
+                background: #ff6b6b;
+                width: 14px;
+                border-radius: 7px;
+            }}
+        """)
+        error_layout.addWidget(self.error_slider)
+        right.addLayout(error_layout)
+        
         self.progress = QtWidgets.QProgressBar()
         self.progress.setValue(0)
         self.progress.setVisible(False)
         right.addWidget(self.progress)
+        
         mid.addLayout(right, 1)
         central_layout.addLayout(mid)
-        bottom = QtWidgets.QHBoxLayout()
+        
+        # Delay and mode settings
+        bottom_layout = QtWidgets.QHBoxLayout()
+        
+        delay_layout = QtWidgets.QHBoxLayout()
         self.delay_slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
         self.delay_slider.setMinimum(0)
         self.delay_slider.setMaximum(200)
         self.delay_slider.setValue(int(self.bot.start_delay * 1000))
         self.delay_label = QtWidgets.QLabel(f"Start Delay: {self.bot.start_delay:.3f}s")
         self.delay_label.setStyleSheet("color: %s;" % text)
-        bottom.addWidget(self.delay_label)
-        bottom.addWidget(self.delay_slider)
-        central_layout.addLayout(bottom)
-        mode_row = QtWidgets.QHBoxLayout()
+        delay_layout.addWidget(self.delay_label)
+        delay_layout.addWidget(self.delay_slider)
+        
+        mode_layout = QtWidgets.QHBoxLayout()
+        mode_layout.addWidget(QtWidgets.QLabel("Mode:"))
         self.mode_combo = QtWidgets.QComboBox()
-        self.mode_combo.addItems(["1 - Ровный", "2 - Живой", "3 - Гибридный", "4 - Ошибочный (5%)"])
+        self.mode_combo.addItems([
+            "1 - Ровный",
+            "2 - Живой",
+            "3 - Гибридный",
+            "4 - Ошибочный"
+        ])
         self.mode_combo.setCurrentIndex(self.bot.mode - 1)
         self.mode_combo.setStyleSheet(f"background: {panel}; color:{text}; border-radius:6px; padding:6px;")
-        mode_row.addWidget(QtWidgets.QLabel("Mode:"))
-        mode_row.addWidget(self.mode_combo)
-        central_layout.addLayout(mode_row)
-        help_label = QtWidgets.QLabel("F1 Start/Pause | F2 Restart | F3 Skip25 | F4 Exit | F5 PrevMode | F6 Freeze | F7 NextMode | F8 NextSong | F10 Force Roblox")
-        help_label.setStyleSheet("color: #9b9b9b;")
+        mode_layout.addWidget(self.mode_combo)
+        
+        bottom_layout.addLayout(delay_layout, 2)
+        bottom_layout.addLayout(mode_layout, 1)
+        central_layout.addLayout(bottom_layout)
+        
+        help_label = QtWidgets.QLabel("F1 Start/Pause | F2 Restart | F3 Skip25 | F4 Exit | F5 PrevMode | F6 Freeze | F7 NextMode | F8 NextSong | F10 Force Roblox | F11 Toggle Notes Overlay")
+        help_label.setStyleSheet("color: #9b9b9b; font-size: 11px;")
+        help_label.setWordWrap(True)
         central_layout.addWidget(help_label)
+        
         # Update section
         update_layout = QtWidgets.QHBoxLayout()
         self.check_update_btn = QtWidgets.QPushButton("Проверить обновление")
         self.check_update_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self.check_update_btn.setFixedHeight(36)
         self.check_update_btn.setStyleSheet("border-radius:8px; border:1px solid rgba(212,175,55,0.12); background: transparent; color: %s;" % text)
+        
         self.download_btn = QtWidgets.QPushButton("Скачать последнюю версию")
         self.download_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self.download_btn.setFixedHeight(36)
         self.download_btn.setStyleSheet("border-radius:8px; border:1px solid rgba(212,175,55,0.12); background: transparent; color: %s;" % text)
+        
         update_layout.addWidget(self.check_update_btn)
         update_layout.addWidget(self.download_btn)
         central_layout.addLayout(update_layout)
+        
         self.check_update_btn.clicked.connect(self.gui_check_update)
         self.download_btn.clicked.connect(self.open_releases_page)
+        
         footer = QtWidgets.QHBoxLayout()
         self.signature = QtWidgets.QLabel("AstraKeys — by SMisha2")
         self.signature.setStyleSheet(f"color: {gold};")
@@ -859,22 +1270,59 @@ class BotGUI(QtWidgets.QWidget):
         footer.addStretch()
         footer.addWidget(self.version_label)
         central_layout.addLayout(footer)
+        
         self.central.setLayout(central_layout)
-        outer.addWidget(self.central)
-        self.setLayout(outer)
+        main_layout.addWidget(self.central)
+        
+        # Stylesheets
         self.setStyleSheet(f"""
-            QWidget {{ font-family: 'Segoe UI', Arial, sans-serif; }}
-            QSlider::groove:horizontal{{height:8px; background: rgba(255,255,255,0.03); border-radius:4px;}}
-            QSlider::handle:horizontal{{background: {soft_gold}; width:14px; border-radius:7px;}}
-            QComboBox{{padding:6px; border-radius:6px;}}
-            QProgressBar{{background: rgba(255,255,255,0.02); border-radius:8px; text-align:center;}}
-            QProgressBar::chunk{{background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 {gold}, stop:1 {soft_gold}); border-radius:8px;}}
+            QWidget {{ 
+                font-family: 'Segoe UI', Arial, sans-serif; 
+                background: {dark};
+                color: {text};
+            }}
+            QSlider::groove:horizontal {{
+                height: 8px; 
+                background: rgba(255,255,255,0.03); 
+                border-radius: 4px;
+            }}
+            QSlider::handle:horizontal {{
+                background: {soft_gold}; 
+                width: 14px; 
+                border-radius: 7px;
+            }}
+            QComboBox {{
+                padding: 6px; 
+                border-radius: 6px;
+                background: {panel};
+                border: 1px solid rgba(255,255,255,0.1);
+            }}
+            QProgressBar {{
+                background: rgba(255,255,255,0.02); 
+                border-radius: 8px; 
+                text-align: center;
+            }}
+            QProgressBar::chunk {{
+                background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 {gold}, stop:1 {soft_gold}); 
+                border-radius: 8px;
+            }}
+            QListWidget {{
+                background: {panel};
+                border-radius: 8px;
+                border: 1px solid rgba(255,255,255,0.05);
+            }}
+            QListWidget::item:selected {{
+                background: rgba(212,175,55,0.2);
+                color: {soft_gold};
+            }}
         """)
+        
         # Connect signals for title bar buttons
-        self.btn_close.clicked.connect(self.close)
+        self.btn_close.clicked.connect(self.close_application)
         self.btn_min.clicked.connect(self.showMinimized)
-        self.btn_max.clicked.connect(self.toggle_maximize)
+        self.btn_restore.clicked.connect(self.toggle_maximized)
         self.btn_about.clicked.connect(self.show_about)
+        
         # Connect other signals
         self.add_btn.clicked.connect(self.add_song_from_input)
         self.start_btn.clicked.connect(self.toggle_start)
@@ -884,20 +1332,67 @@ class BotGUI(QtWidgets.QWidget):
         self.song_list.itemDoubleClicked.connect(self.rename_selected)
         self.delay_slider.valueChanged.connect(self.delay_changed)
         self.mode_combo.currentIndexChanged.connect(self.mode_combo_changed)
-        # Enable mouse tracking for dragging
-        self.setMouseTracking(True)
-        self.central.setMouseTracking(True)
-        self.title_bar.setMouseTracking(True)
-    def toggle_maximize(self):
+        self.remove_btn.clicked.connect(self.remove_selected)
+        self.rename_btn.clicked.connect(self.rename_selected)
+        self.overlay_btn.clicked.connect(self.toggle_overlay)
+        self.error_slider.valueChanged.connect(self.error_rate_changed)
+        
+        # Enable window resizing
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowType.WindowMaximizeButtonHint | QtCore.Qt.WindowType.WindowMinimizeButtonHint)
+        
+        # Create overlay window
+        self.overlay_window = NoteOverlayWindow()
+        self.bot.set_overlay_window(self.overlay_window)
+    
+    def toggle_maximized(self):
         if self.isMaximized():
             self.showNormal()
+            self.btn_restore.setText("❐")
         else:
             self.showMaximized()
+            self.btn_restore.setText("❐")
+    
+    def close_application(self):
+        # Save window state before closing
+        self.save_window_state()
+        self.overlay_window.close()
+        self.close()
+    
+    def save_window_state(self):
+        try:
+            state = {
+                "geometry": {
+                    "x": self.x(),
+                    "y": self.y(),
+                    "width": self.width(),
+                    "height": self.height()
+                },
+                "maximized": self.isMaximized()
+            }
+            with open("window_state.json", "w", encoding="utf-8") as f:
+                json.dump(state, f, indent=2)
+        except Exception as e:
+            print(f"Error saving window state: {e}")
+    
+    def load_window_state(self):
+        try:
+            if os.path.exists("window_state.json"):
+                with open("window_state.json", "r", encoding="utf-8") as f:
+                    state = json.load(f)
+                    if not state.get("maximized", False):
+                        geom = state.get("geometry", {})
+                        if all(k in geom for k in ["x", "y", "width", "height"]):
+                            self.setGeometry(geom["x"], geom["y"], geom["width"], geom["height"])
+        except Exception as e:
+            print(f"Error loading window state: {e}")
+    
     def show_about(self):
         dialog = AboutDialog(self)
         dialog.exec()
+    
     def open_releases_page(self):
         webbrowser.open(RELEASES_URL)
+    
     def check_internet_status(self):
         def worker():
             try:
@@ -905,6 +1400,7 @@ class BotGUI(QtWidgets.QWidget):
             except:
                 pass
         threading.Thread(target=worker, daemon=True).start()
+    
     def roblox_keepalive(self):
         """Keep Roblox window accessible without constant focus changes"""
         while True:
@@ -913,27 +1409,7 @@ class BotGUI(QtWidgets.QWidget):
                 time.sleep(5)
             except:
                 time.sleep(5)
-    def mousePressEvent(self, event):
-        if event.button() == QtCore.Qt.MouseButton.LeftButton:
-            # FIXED: Check if click is in title bar area
-            if self.title_bar.geometry().contains(event.position().toPoint()):
-                self.dragging = True
-                self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
-                event.accept()
-        super().mousePressEvent(event)
-    def mouseMoveEvent(self, event):
-        if self.dragging and event.buttons() & QtCore.Qt.MouseButton.LeftButton:
-            self.move(event.globalPosition().toPoint() - self.drag_position)
-            event.accept()
-        super().mouseMoveEvent(event)
-    def mouseReleaseEvent(self, event):
-        self.dragging = False
-        super().mouseReleaseEvent(event)
-    def mouseDoubleClickEvent(self, event):
-        if event.button() == QtCore.Qt.MouseButton.LeftButton:
-            if self.title_bar.geometry().contains(event.position().toPoint()):
-                self.toggle_maximize()
-        super().mouseDoubleClickEvent(event)
+    
     def add_song_from_input(self):
         text = self.song_input.toPlainText().strip()
         if text:
@@ -945,6 +1421,7 @@ class BotGUI(QtWidgets.QWidget):
             self.song_list.addItem(f"{name} — {len(sanitized)} chars")
             print(f"Song '{name}' added")
             self.song_input.clear()
+    
     def remove_selected(self):
         row = self.song_list.currentRow()
         if 0 <= row < len(self.bot.playlist):
@@ -955,6 +1432,7 @@ class BotGUI(QtWidgets.QWidget):
             if self.bot.playlist:
                 self.bot.song_name, self.bot.song = self.bot.playlist[self.bot.song_index]
             self.song_list.setCurrentRow(self.bot.song_index)
+    
     def rename_selected(self):
         row = self.song_list.currentRow()
         if 0 <= row < len(self.bot.playlist):
@@ -966,27 +1444,38 @@ class BotGUI(QtWidgets.QWidget):
                     self.bot.song_name = new_name.strip()
                 self.song_list.item(row).setText(f"{new_name.strip()} — {len(content)} chars")
                 print(f"Renamed song to '{new_name.strip()}'")
+    
     def toggle_start(self):
         self.bot.playing = not self.bot.playing
         self.refresh_status()
+    
     def next_song(self):
         self.bot.next_song()
         self.song_list.setCurrentRow(self.bot.song_index)
         self.refresh_status()
+    
     def prev_mode(self):
         self.bot.mode = self.bot.mode - 1 if self.bot.mode > 1 else 4
         self.mode_combo.setCurrentIndex(self.bot.mode - 1)
         self.refresh_status()
+    
     def next_mode(self):
         self.bot.mode = self.bot.mode + 1 if self.bot.mode < 4 else 1
         self.mode_combo.setCurrentIndex(self.bot.mode - 1)
         self.refresh_status()
+    
     def delay_changed(self, val):
         self.bot.start_delay = val / 1000.0
         self.delay_label.setText(f"Start Delay: {self.bot.start_delay:.3f}s")
+    
+    def error_rate_changed(self, val):
+        self.bot.error_rate = val / 100.0
+        self.error_rate_label.setText(f"Error Rate: {self.bot.error_rate*100:.0f}%")
+    
     def mode_combo_changed(self, idx):
         self.bot.mode = idx + 1
         self.refresh_status()
+    
     def update_song_display(self):
         """Update the song display with current position highlighting"""
         if not self.bot.song:
@@ -994,8 +1483,8 @@ class BotGUI(QtWidgets.QWidget):
             return
         
         # Define display parameters
-        chars_per_line = 35  # Characters per line
-        lines_to_show = 2    # Number of lines to show
+        chars_per_line = 45  # Characters per line
+        lines_to_show = 3    # Number of lines to show
         total_chars = chars_per_line * lines_to_show
         
         # Determine current position (considering freeze mode)
@@ -1033,7 +1522,7 @@ class BotGUI(QtWidgets.QWidget):
                         end_bracket = i
                         break
                 
-                if end_bracket != -1:
+                if end_bracket != -1 and end_bracket < len(display_text):
                     # Split text into parts
                     before = display_text[:current_in_display]
                     chord = display_text[current_in_display:end_bracket + 1]
@@ -1052,13 +1541,13 @@ class BotGUI(QtWidgets.QWidget):
             
             # For single note highlighting
             before = display_text[:current_in_display]
-            current = display_text[current_in_display]
-            after = display_text[current_in_display + 1:]
+            current_char = display_text[current_in_display] if current_in_display < len(display_text) else ''
+            after = display_text[current_in_display + 1:] if current_in_display + 1 < len(display_text) else ''
             
             highlighted = (
                 f'<span style="color: #ccc;">{before}</span>'
                 f'<span style="background-color: rgba(255,216,106,0.5); border-radius: 3px; padding: 0 2px; color: #ffd86a; font-weight: bold;">'
-                f'{current}'
+                f'{current_char}'
                 f'</span>'
                 f'<span style="color: #ccc;">{after}</span>'
             )
@@ -1067,6 +1556,13 @@ class BotGUI(QtWidgets.QWidget):
         
         # Fallback: no highlighting needed or possible
         self.song_display.setPlainText(display_text)
+    
+    def toggle_overlay(self):
+        if self.overlay_window.isVisible():
+            self.overlay_window.hide()
+        else:
+            self.overlay_window.show()
+    
     def refresh_status(self):
         st = "Playing" if self.bot.playing else "Paused"
         self.status_label.setText(f"Status: {st}")
@@ -1074,20 +1570,31 @@ class BotGUI(QtWidgets.QWidget):
         self.mode_label.setText(f"Mode: {self.bot.mode} — {mode_names.get(self.bot.mode,'?')}")
         try:
             self.pos_label.setText(f"Pos: {self.bot.note_index}/{len(self.bot.song)}")
+            self.error_rate_label.setText(f"Error Rate: {self.bot.error_rate*100:.0f}%")
+            if self.bot.mode == 4:
+                self.error_rate_label.setVisible(True)
+                self.error_slider.setVisible(True)
+            else:
+                self.error_rate_label.setVisible(False)
+                self.error_slider.setVisible(False)
         except:
             self.pos_label.setText("Pos: 0/0")
+        
         if self.mode_combo.currentIndex() != self.bot.mode - 1:
             self.mode_combo.setCurrentIndex(self.bot.mode - 1)
+        
         if self.song_list.currentRow() != self.bot.song_index:
             self.song_list.setCurrentRow(self.bot.song_index)
         
         # Update song display with current position
         self.update_song_display()
+    
     def gui_check_update(self):
         self.check_update_btn.setEnabled(False)
         self.progress.setVisible(True)
         self.progress.setValue(0)
         threading.Thread(target=self._check_update_worker, daemon=True).start()
+    
     def _check_update_worker(self):
         try:
             info, err = fetch_latest_release_info()
@@ -1141,11 +1648,13 @@ class BotGUI(QtWidgets.QWidget):
                 return
         finally:
             QtCore.QTimer.singleShot(0, lambda: self._update_ui_after_check(False))
+    
     def _update_ui_after_check(self, busy=True):
         self.check_update_btn.setEnabled(True)
         if not busy:
             self.progress.setVisible(False)
             self.progress.setValue(0)
+    
     def _show_message_box(self, title, text):
         def show():
             mb = QtWidgets.QMessageBox(self)
@@ -1160,11 +1669,14 @@ if __name__ == "__main__":
         ("Stairway to Heaven", r"[eT] [eT] [6eT] [ey] [6eT] [4qe] [qe] [6qe] [qE] 4 [6qe]"),
         ("Minecraft Theme", r"l--l--l--l-lzlk"),
         ("Twinkle Twinkle", r"fffff[4qf]spsfspsg"),
+        ("Русская мелодия", r"ааааа[аф]ддддаа[см]мммм")
     ]
     bot = RobloxPianoBot(default_playlist)
     player_thread = threading.Thread(target=bot.play_song, daemon=True)
     player_thread.start()
     app = QtWidgets.QApplication(sys.argv)
+    app.setStyle("Fusion")  # Make UI look more consistent
+    
     # load Montserrat font if available
     try:
         font_db = QtGui.QFontDatabase()
@@ -1174,6 +1686,12 @@ if __name__ == "__main__":
                 font_db.addApplicationFont(local_ttf)
     except Exception:
         pass
+    
+    # Set application font
+    font = QtGui.QFont("Segoe UI", 9)
+    app.setFont(font)
+    
     gui = BotGUI(bot)
     gui.show()
+    
     sys.exit(app.exec())
