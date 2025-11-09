@@ -1,4 +1,4 @@
-# AstraKeys_v1.6.0 — Black Onyx / Solar Gold / Nebula blend
+# AstraKeys_v1.1.6 — Black Onyx / Solar Gold / Nebula blend
 # by SMisha2
 # Features: Russian keyboard support, adjustable error mode, resizable window, overlay note display with transparency and fullscreen
 # Deepseek used for comment code and put in order
