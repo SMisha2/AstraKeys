@@ -26,11 +26,12 @@ except Exception:
     win32con = None
     win32process = None
 try:
-    from pynput.keyboard import Controller, Key, Listener
+    from pynput.keyboard import Controller, Key, Listener, KeyCode
 except Exception:
     Controller = None
     Key = None
     Listener = None
+    KeyCode = None
 import requests
 try:
     from PyQt6 import QtWidgets, QtCore, QtGui
@@ -289,6 +290,20 @@ class RobloxPianoBot:
     def listen_keys(self):
         def on_press(key):
             try:
+                # Enhanced bracket detection
+                key_char = getattr(key, 'char', None)
+                is_bracket = False
+                
+                # Check for bracket keys directly
+                if hasattr(key, 'vk'):
+                    # VK_LEFTBRACKET = 219, VK_RIGHTBRACKET = 221
+                    if key.vk in (219, 221):
+                        is_bracket = True
+                elif isinstance(key, KeyCode) and hasattr(key, 'char') and key.char in ["[", "]", "{", "}"]:
+                    is_bracket = True
+                elif key_char in ["[", "]"]:
+                    is_bracket = True
+                
                 if key == Key.f7:
                     old = self.mode
                     self.mode = self.mode + 1 if self.mode < 4 else 1
@@ -319,19 +334,37 @@ class RobloxPianoBot:
                         print("Freeze off")
                 elif key == Key.f8:
                     self.next_song()
-                elif hasattr(key, "char") and key.char in PEDAL_KEYS:
-                    self.hold_star = True
-                    print("Pedal down")
                 elif key == Key.f10:
                     activate_roblox_window()
-            except:
+                # Check for pedal keys including brackets
+                elif (key_char in PEDAL_KEYS) or is_bracket:
+                    self.hold_star = True
+                    key_repr = key_char or ("[" if hasattr(key, 'vk') and key.vk == 219 else "]")
+                    print(f"Pedal down ({key_repr})")
+            except Exception as e:
+                print(f"Error in on_press: {e}")
                 pass
         def on_release(key):
             try:
-                if hasattr(key, "char") and key.char in PEDAL_KEYS:
+                # Enhanced bracket detection for release too
+                key_char = getattr(key, 'char', None)
+                is_bracket = False
+                
+                if hasattr(key, 'vk'):
+                    if key.vk in (219, 221):
+                        is_bracket = True
+                elif isinstance(key, KeyCode) and hasattr(key, 'char') and key.char in ["[", "]", "{", "}"]:
+                    is_bracket = True
+                elif key_char in ["[", "]"]:
+                    is_bracket = True
+                
+                # Check for pedal keys including brackets
+                if (key_char in PEDAL_KEYS) or is_bracket:
                     self.hold_star = False
-                    print("Pedal up")
-            except:
+                    key_repr = key_char or ("[" if hasattr(key, 'vk') and key.vk == 219 else "]")
+                    print(f"Pedal up ({key_repr})")
+            except Exception as e:
+                print(f"Error in on_release: {e}")
                 pass
         try:
             with Listener(on_press=on_press, on_release=on_release) as listener:
@@ -463,6 +496,14 @@ class RobloxPianoBot:
                 else:
                     chord = [char]
                     next_index = current_index + 1
+                
+                # Skip processing if this is a bracket that's being used as pedal
+                if chord and chord[0] in ["[", "]"]:
+                    if not self.freeze_note:
+                        self.note_index = next_index
+                    time.sleep(0.01)
+                    continue
+                
                 # Activate Roblox before playing
                 bring_roblox_to_front()
                 time.sleep(0.01)  # Small delay to ensure window is active
@@ -562,7 +603,7 @@ class BotGUI(QtWidgets.QWidget):
         # Default size and position
         screen = QtWidgets.QApplication.primaryScreen().availableGeometry()
         default_width = 700
-        default_height = 500
+        default_height = 550  # Slightly increased height for the new display area
         x = (screen.width() - default_width) // 2
         y = (screen.height() - default_height) // 2
         self.setGeometry(x, y, default_width, default_height)
@@ -690,6 +731,26 @@ class BotGUI(QtWidgets.QWidget):
         subtitle = QtWidgets.QLabel("Solar Gold · Black Onyx · Nebula")
         subtitle.setStyleSheet(f"color: {soft_gold}; font-size:12px; margin-left:14px;")
         central_layout.addWidget(subtitle)
+        
+        # Song progress display (new feature)
+        self.song_display = QtWidgets.QTextEdit()
+        self.song_display.setReadOnly(True)
+        self.song_display.setFixedHeight(70)  # Height for about 2 lines of text
+        self.song_display.setStyleSheet(f"""
+            QTextEdit {{
+                background: {panel};
+                border-radius:8px;
+                padding:8px;
+                color:{text};
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+            }}
+            QTextEdit:hover {{
+                border: 1px solid {gold};
+            }}
+        """)
+        central_layout.addWidget(self.song_display)
+        
         self.song_input = QtWidgets.QTextEdit()
         self.song_input.setPlaceholderText("Вставьте текст песни сюда и нажмите 'Добавить'")
         self.song_input.setFixedHeight(110)
@@ -926,6 +987,86 @@ class BotGUI(QtWidgets.QWidget):
     def mode_combo_changed(self, idx):
         self.bot.mode = idx + 1
         self.refresh_status()
+    def update_song_display(self):
+        """Update the song display with current position highlighting"""
+        if not self.bot.song:
+            self.song_display.setPlainText("")
+            return
+        
+        # Define display parameters
+        chars_per_line = 35  # Characters per line
+        lines_to_show = 2    # Number of lines to show
+        total_chars = chars_per_line * lines_to_show
+        
+        # Determine current position (considering freeze mode)
+        current_pos = self.bot.frozen_note_index if self.bot.freeze_note else self.bot.note_index
+        
+        # If current position is beyond song length, just show the end
+        if current_pos >= len(self.bot.song):
+            start_pos = max(0, len(self.bot.song) - total_chars)
+            display_text = self.bot.song[start_pos:]
+            self.song_display.setPlainText(display_text)
+            return
+        
+        # Calculate start position to center current note
+        start_pos = max(0, current_pos - (total_chars // 3))
+        
+        # Get the text to display
+        display_text = self.bot.song[start_pos:start_pos + total_chars]
+        
+        # If we're at the end of the song, adjust to show the end
+        if len(display_text) < total_chars and start_pos + total_chars > len(self.bot.song):
+            start_pos = max(0, len(self.bot.song) - total_chars)
+            display_text = self.bot.song[start_pos:start_pos + total_chars]
+        
+        # Calculate position within the displayed text
+        current_in_display = current_pos - start_pos
+        
+        # Create HTML with highlighting if current position is within display range
+        if 0 <= current_in_display < len(display_text):
+            # Check if we're at the start of a chord
+            if current_in_display < len(display_text) - 1 and display_text[current_in_display] == '[':
+                # Find the end of the chord
+                end_bracket = -1
+                for i in range(current_in_display + 1, min(current_in_display + 20, len(display_text))):
+                    if display_text[i] == ']':
+                        end_bracket = i
+                        break
+                
+                if end_bracket != -1:
+                    # Split text into parts
+                    before = display_text[:current_in_display]
+                    chord = display_text[current_in_display:end_bracket + 1]
+                    after = display_text[end_bracket + 1:]
+                    
+                    # Create HTML with chord highlighting
+                    highlighted = (
+                        f'<span style="color: #ccc;">{before}</span>'
+                        f'<span style="background-color: rgba(255,216,106,0.4); border-radius: 3px; padding: 0 2px; color: #ffd86a; font-weight: bold;">'
+                        f'{chord}'
+                        f'</span>'
+                        f'<span style="color: #ccc;">{after}</span>'
+                    )
+                    self.song_display.setHtml(highlighted)
+                    return
+            
+            # For single note highlighting
+            before = display_text[:current_in_display]
+            current = display_text[current_in_display]
+            after = display_text[current_in_display + 1:]
+            
+            highlighted = (
+                f'<span style="color: #ccc;">{before}</span>'
+                f'<span style="background-color: rgba(255,216,106,0.5); border-radius: 3px; padding: 0 2px; color: #ffd86a; font-weight: bold;">'
+                f'{current}'
+                f'</span>'
+                f'<span style="color: #ccc;">{after}</span>'
+            )
+            self.song_display.setHtml(highlighted)
+            return
+        
+        # Fallback: no highlighting needed or possible
+        self.song_display.setPlainText(display_text)
     def refresh_status(self):
         st = "Playing" if self.bot.playing else "Paused"
         self.status_label.setText(f"Status: {st}")
@@ -939,6 +1080,9 @@ class BotGUI(QtWidgets.QWidget):
             self.mode_combo.setCurrentIndex(self.bot.mode - 1)
         if self.song_list.currentRow() != self.bot.song_index:
             self.song_list.setCurrentRow(self.bot.song_index)
+        
+        # Update song display with current position
+        self.update_song_display()
     def gui_check_update(self):
         self.check_update_btn.setEnabled(False)
         self.progress.setVisible(True)
