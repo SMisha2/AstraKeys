@@ -1,7 +1,6 @@
 # AstraKeys_v1.1.6 — Black Onyx / Solar Gold / Nebula blend
 # by SMisha2
 # Features: Russian keyboard support, adjustable error mode, resizable window, overlay note display with transparency and fullscreen
-# Deepseek used for comment code and put in order
 CURRENT_VERSION = "1.1.6"
 GITHUB_OWNER = "SMisha2"
 GITHUB_REPO = "AstraKeys"
@@ -47,13 +46,13 @@ RU_EN_MAPPING = {
     'я': 'z', 'ч': 'x', 'с': 'c', 'м': 'v', 'и': 'b', 'т': 'n', 'ь': 'm', 'б': ',', 'ю': '.', 'ё': '`'
 }
 EN_RU_MAPPING = {v: k for k, v in RU_EN_MAPPING.items()}
-ROBLOX_KEYS = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@$%^*(";%:*("
+ROBLOX_KEYS = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@$%^*()_+-=[]{};':\",./<>?\\|`~&"
 # ---------------- Keyboard helpers ----------------
 def is_valid_key(key):
     """Check if key is valid for pynput"""
     if not key or not isinstance(key, str) or len(key) != 1:
         return False
-    return key.isalnum() or key in "!@$%^*(";%:*"
+    return key.isalnum() or key in "!@#$%^&*()_+-=[]{};':\",./<>?\\|`~"
 # ---------------- Auto-update helpers ----------------
 def download_asset_to_file(url, dest_path, progress_callback=None, max_retries=3):
     for attempt in range(max_retries):
