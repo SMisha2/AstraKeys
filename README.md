@@ -1,2 +1,2 @@
-# AstraKeys
-Optimised Roblox piano bot with auto-updater
+#AstraKeys
+Roblox Piano Auto Player Bot
