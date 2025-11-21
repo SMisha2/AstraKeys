@@ -1,8 +1,8 @@
-# AstraKeys_v2.1.0 — Black Onyx / Solar Gold / Nebula blend
+# AstraKeys_v1.1.7 — Black Onyx / Solar Gold / Nebula blend
 # by SMisha2
 # Features: Russian keyboard support, transparent window when playing, smooth animations, better update system
 
-CURRENT_VERSION = "2.1.0"
+CURRENT_VERSION = "1.1.7"
 GITHUB_OWNER = "SMisha2"
 GITHUB_REPO = "AstraKeys"
 ASSET_NAME = "AstraKeys.exe"
