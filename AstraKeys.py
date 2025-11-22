@@ -1,8 +1,8 @@
-# AstraKeys_v1.1.7 — Black Onyx / Solar Gold / Nebula blend
-# by SMisha2
-# Features: Russian keyboard support, transparent window when playing, smooth animations, better update system
+# AstraKeys_v1.1.8 — Solar Gold / Pure Black
+# by black
+# Features: Russian keyboard support, transparent window when playing, animations, better update system
 
-CURRENT_VERSION = "1.1.7"
+CURRENT_VERSION = "1.1.8"
 GITHUB_OWNER = "SMisha2"
 GITHUB_REPO = "AstraKeys"
 ASSET_NAME = "AstraKeys.exe"
@@ -56,7 +56,11 @@ RU_EN_MAPPING = {
     'Я': 'Z', 'Ч': 'X', 'С': 'C', 'М': 'V', 'И': 'B', 'Т': 'N', 'Ь': 'M', 'Б': '<', 'Ю': '>', 'Ё': '~'
 }
 
-ROBLOX_KEYS = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@$%^*()_+-=[]{};':\",./<>?\\|`~&"
+# ✅ ИСПРАВЛЕННЫЙ ФИЛЬТР - ТОЛЬКО БЕЛЫЕ КЛАВИШИ И СПЕЦИАЛЬНЫЕ СИМВОЛЫ
+ROBLOX_KEYS = "[]!@$%^*+-#(QWERTYUIOPASDFGHJKLZXCVBNM1234567890qwertyuiopasdfghjklzxcvbnm"
+
+# БЕЛЫЕ КЛАВИШИ ДЛЯ ОШИБОЧНОГО РЕЖИМА
+WHITE_KEYS = "qwertyuiopasdfghjklzxcvbnm1234567890"
 
 # ============= AUTO-UPDATE HELPERS =============
 def download_asset_to_file(url, dest_path, progress_callback=None, max_retries=3):
@@ -104,12 +108,7 @@ def download_asset_to_file(url, dest_path, progress_callback=None, max_retries=3
     return False, "Max retries exceeded"
 
 def perform_replacement_and_restart(new_file, target_name, is_frozen):
-    """
-    ✨ IMPROVED UPDATE SYSTEM:
-    1. Запускает новую версию
-    2. Новая версия работает
-    3. Только потом удаляется старая версия
-    """
+    """✨ Новая версия открывается ПЕРВОЙ, потом закрывается старая"""
     try:
         if is_frozen or sys.argv[0].lower().endswith(".exe"):
             current_exec = os.path.basename(sys.argv[0])
@@ -119,33 +118,20 @@ def perform_replacement_and_restart(new_file, target_name, is_frozen):
             old_backup = os.path.join(current_dir, f"{target_name}.old")
             
             bat_content = f"""@echo off
-REM Ждем немного перед началом
 timeout /t 1 >nul
-
-REM Запускаем новую версию ЭТО ГЛАВНОЕ - новая откроется ПЕРВОЙ
 start "" "{new_path}"
-
-REM Даем новой версии время на загрузку
 timeout /t 3 >nul
-
-REM Только потом закрываем старую версию
 :kill_loop
 taskkill /f /im "{current_exec}" >nul 2>&1
 timeout /t 1 >nul
 tasklist | findstr /i "{current_exec}" >nul && goto kill_loop
-
-REM Удаляем старую версию
 if exist "{target_path}" (
     if exist "{old_backup}" del "{old_backup}" >nul 2>&1
     rename "{target_path}" "{target_name}.old" >nul 2>&1
     timeout /t 1 >nul
     del "{old_backup}" >nul 2>&1
 )
-
-REM Переименовываем новую версию в целевую
 rename "{new_path}" "{target_name}" >nul 2>&1
-
-REM Удаляем этот скрипт
 del "%~f0" >nul 2>&1 & exit
 """
             with open("update.bat", "w", encoding="utf-8") as f:
@@ -247,6 +233,8 @@ class RobloxPianoBot:
             if sanitized:
                 self.playlist.append((name, sanitized))
         
+        self.load_playlist()
+        
         if not self.playlist:
             print("⚠️ Playlist empty!")
             sys.exit(1)
@@ -267,6 +255,9 @@ class RobloxPianoBot:
         self.active_keys = set()
         self.last_played_time = time.time()
         
+        # ✨ ИСПРАВКА: Сохраняем какие РЕАЛЬНО нажаты клавиши (для mode 4)
+        self.played_chord = []  # Сохраняем реально нажатые клавиши
+        
         print("🎹 AstraKeys Bot v" + CURRENT_VERSION + " initialized")
         print("▶ F1 Play/Pause | F2 Restart | F3 Skip25 | F4 Exit")
         print("⭐ [ or ] - Pedal | F6 Freeze | F7 Next Mode | F5 Prev Mode | F8 Next Song | F10 Force Roblox")
@@ -275,9 +266,42 @@ class RobloxPianoBot:
             threading.Thread(target=self.listen_keys, daemon=True).start()
     
     def sanitize_song(self, song):
+        """Фильтр: оставляем ТОЛЬКО нужные символы"""
         if not song:
             return ""
-        return ''.join(ch for ch in song if ch in ROBLOX_KEYS + " \t\n\r")
+        return ''.join(ch for ch in song if ch in ROBLOX_KEYS + "\t\n\r[]")
+    
+    def save_playlist(self, filename="playlist.json"):
+        """💾 Сохранить плейлист в файл"""
+        try:
+            data = [{"name": name, "content": content} for name, content in self.playlist]
+            with open(filename, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            print(f"✅ Playlist saved to {filename}")
+            return True
+        except Exception as e:
+            print(f"❌ Error saving playlist: {e}")
+            return False
+    
+    def load_playlist(self, filename="playlist.json"):
+        """📂 Загрузить плейлист из файла"""
+        try:
+            if os.path.exists(filename):
+                with open(filename, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, list) and data:
+                        self.playlist = [(item.get("name", f"Song {i+1}"), item.get("content", "")) 
+                                         for i, item in enumerate(data) 
+                                         if item.get("content")]
+                        if self.playlist:
+                            self.song_index = 0
+                            self.song_name, self.song = self.playlist[self.song_index]
+                            print(f"✅ Loaded {len(self.playlist)} songs from {filename}")
+                            return True
+            return False
+        except Exception as e:
+            print(f"❌ Error loading playlist: {e}")
+            return False
     
     def convert_to_english(self, key):
         """Convert Russian key to English equivalent for Roblox"""
@@ -339,20 +363,45 @@ class RobloxPianoBot:
                     pass
             self.active_keys.clear()
     
+    def get_adjacent_keys(self, key):
+        """🎹 Получить соседние клавиши для ошибочного режима"""
+        # Клавиша и её соседи (слева и справа)
+        keyboard_layout = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"
+        try:
+            idx = keyboard_layout.index(key)
+            adjacent = []
+            if idx > 0:
+                adjacent.append(keyboard_layout[idx - 1])
+            if idx < len(keyboard_layout) - 1:
+                adjacent.append(keyboard_layout[idx + 1])
+            return adjacent if adjacent else [key]
+        except ValueError:
+            return [key]
+    
     def apply_error(self, k):
+        """✨ ИСПРАВЛЕННЫЙ ОШИБОЧНЫЙ РЕЖИМ
+        - Работает ТОЛЬКО на белые клавиши
+        - С шансом error_rate меняет ноту на соседнюю
+        - Показывает, что произошла ошибка в консоль
+        """
         try:
             if len(k) != 1:
                 return k
-            c = self.convert_to_english(k).lower()
-            if c not in ROBLOX_KEYS.lower():
+            
+            # Проверяем что это белая клавиша
+            if k not in WHITE_KEYS:
                 return k
-            if c in ["1", "m"]:
-                return k
+            
+            # Проверяем шанс ошибки
             if random.random() < self.error_rate:
-                all_keys = [ch for ch in ROBLOX_KEYS.lower() if ch.isalnum()]
-                if not all_keys:
-                    return k
-                return random.choice(all_keys)
+                # Получаем соседние клавиши
+                adjacent = self.get_adjacent_keys(k)
+                if adjacent:
+                    # Выбираем случайную соседнюю
+                    wrong_key = random.choice(adjacent)
+                    print(f"⚠️ ERROR: {k} → {wrong_key} (chance: {self.error_rate*100:.0f}%)")
+                    return wrong_key
+            
             return k
         except:
             return k
@@ -451,8 +500,15 @@ class RobloxPianoBot:
     
     def play_chord(self, chord):
         """Play chord with mode-specific timing"""
+        # Сохраняем исходный аккорд
+        self.played_chord = chord.copy()
+        
         if self.mode == 4:
+            # Ошибочный режим: применяем ошибки ПЕРЕД нажатием
             chord = [self.apply_error(k) for k in chord]
+            # 🔴 ВАЖНО: Сохраняем РЕАЛЬНО нажатые клавиши (с ошибками)
+            self.played_chord = chord.copy()
+        
         if self.mode == 1:
             for k in chord:
                 self.press_key(k)
@@ -477,30 +533,41 @@ class RobloxPianoBot:
                 press_threads.append(t_press)
             max_press_time = base_press_delay + (len(chord) * 0.003) + 0.002
             time.sleep(max_press_time)
+        elif self.mode == 4:
+            for k in chord:
+                self.press_key(k)
     
     def release_chord(self, chord):
         """Release chord with mode-specific timing"""
         if not chord:
             return
+        
+        # 🔴 ИСПРАВКА: Отпускаем РЕАЛЬНО нажатые клавиши (те, что в self.played_chord)
+        # А не исходные ноты из аккорда
+        release_keys = self.played_chord if self.played_chord else chord
+        
         if self.mode == 1:
-            for k in chord:
+            for k in release_keys:
                 self.release_key(k)
         elif self.mode == 2:
-            for k in chord:
+            for k in release_keys:
                 delay = random.uniform(0.05, 0.2)
                 t = threading.Timer(delay, self.release_key, args=[k])
                 t.daemon = True
                 t.start()
         elif self.mode == 3:
             base_release_delay = random.uniform(0.015, 0.04)
-            for i, k in enumerate(chord):
+            for i, k in enumerate(release_keys):
                 release_delay = base_release_delay + (i * 0.005)
                 t_release = threading.Timer(release_delay, self.release_key, args=[k])
                 t_release.daemon = True
                 t_release.start()
         else:
-            for k in chord:
+            for k in release_keys:
                 self.release_key(k)
+        
+        # Очищаем после отпускания
+        self.played_chord = []
     
     def play_song(self):
         time.sleep(0.5)
@@ -513,6 +580,7 @@ class RobloxPianoBot:
                     self.frozen_note_index = 0
                     self.release_all()
                     current_chord = None
+                    self.played_chord = []  # 🔴 ИСПРАВКА
                     print("Restarted")
                     while self.hold_star:
                         time.sleep(0.01)
@@ -578,7 +646,7 @@ class RobloxPianoBot:
                 
                 self.play_chord(chord)
                 current_chord = chord
-                print(f"Played: {chord} at pos {current_index}")
+                print(f"Played: {chord} at pos {current_index} | Actual: {self.played_chord}")
                 
                 while self.hold_star and self.playing and not self.restart:
                     time.sleep(0.01)
@@ -603,7 +671,7 @@ class AboutDialog(QtWidgets.QDialog):
         self.setFixedSize(400, 340)
         self.setStyleSheet("""
             QDialog {
-                background: #0b0b0b;
+                background: #000000;
                 color: #f5f3f1;
                 font-family: 'Segoe UI', Arial, sans-serif;
             }
@@ -613,17 +681,17 @@ class AboutDialog(QtWidgets.QDialog):
             QLabel.title {
                 font-size: 20px;
                 font-weight: bold;
-                color: #ffd86a;
+                color: #cfa00a;
             }
             QPushButton {
-                background: #1a1a1a;
-                border: 1px solid #d4af37;
+                background: #0a0a0a;
+                border: 1px solid #cfa00a;
                 color: white;
                 padding: 8px 16px;
                 border-radius: 6px;
             }
             QPushButton:hover {
-                background: #252525;
+                background: #1a1a1a;
             }
         """)
         layout = QtWidgets.QVBoxLayout()
@@ -650,19 +718,19 @@ class AboutDialog(QtWidgets.QDialog):
             "Новые возможности v2.1.0:\n"
             "- Окно поверх Roblox + прозрачное для кликов\n"
             "- Гладкие анимации при наведении\n"
-            "- Улучшенная система обновлений\n"
-            "- Новая версия открывается ДО закрытия старой"
+            "- Сохранение и загрузка плейлиста\n"
+            "- Улучшенная система обновлений"
         )
         new_features.setStyleSheet("color: #5fd7ff; margin-top: 10px;")
         layout.addWidget(new_features)
         
-        link = QtWidgets.QLabel(f'<a href="{RELEASES_URL}" style="color:#7aa7ff;text-decoration:underline;">{RELEASES_URL}</a>')
+        link = QtWidgets.QLabel(f'<a href="{RELEASES_URL}" style="color:#cfa00a;text-decoration:underline;">Скачать обновление</a>')
         link.setOpenExternalLinks(True)
         link.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(link)
         
-        author = QtWidgets.QLabel("Автор: SMisha2")
-        author.setStyleSheet("color: #d4af37;")
+        author = QtWidgets.QLabel("Исходный код: SMisha2")
+        author.setStyleSheet("color: #cfa00a;")
         author.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(author)
         
@@ -681,7 +749,7 @@ class BotGUI(QtWidgets.QWidget):
         self._is_on_top = False
         self._is_transparent = False
         
-        self.setWindowTitle("AstraKeys — by SMisha2")
+        self.setWindowTitle("AstraKeys — Solar Gold x Pure Black")
         self.setWindowFlags(QtCore.Qt.WindowType.Window)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, False)
         
@@ -714,11 +782,11 @@ class BotGUI(QtWidgets.QWidget):
         
         self.check_internet_status()
         
-        # Анимация появления
+        # 🎨 Анимация появления
         QtCore.QTimer.singleShot(100, self.animate_show)
     
     def animate_show(self):
-        """Плавное появление окна"""
+        """Плавное появление окна при запуске"""
         self.opacity_effect = QtWidgets.QGraphicsOpacityEffect()
         self.setGraphicsEffect(self.opacity_effect)
         self.opacity_effect.setOpacity(0)
@@ -737,14 +805,14 @@ class BotGUI(QtWidgets.QWidget):
         
         if want_on_top != self._is_on_top or want_transparent != self._is_transparent:
             if want_on_top:
-                # Окно поверх других + пропускает клики сквозь
+                # 🎮 Окно поверх других + пропускает клики сквозь
                 self.setWindowFlags(
                     QtCore.Qt.WindowType.Window |
                     QtCore.Qt.WindowType.WindowStaysOnTopHint |
                     QtCore.Qt.WindowType.WindowTransparentForInput
                 )
             else:
-                # Нормальное окно с возможностью клика
+                # 📝 Нормальное окно с возможностью клика
                 self.setWindowFlags(
                     QtCore.Qt.WindowType.Window |
                     QtCore.Qt.WindowType.WindowMaximizeButtonHint |
@@ -755,10 +823,10 @@ class BotGUI(QtWidgets.QWidget):
             self._is_transparent = want_transparent
     
     def init_ui(self):
-        dark = '#0b0b0b'
-        panel = 'rgba(18,18,18,0.85)'
-        gold = '#d4af37'
-        soft_gold = '#ffd86a'
+        # 🎨 ЦВЕТА: Pure Black + Solar Gold (#cfa00a)
+        black = '#000000'
+        panel = 'rgba(10,10,10,0.85)'
+        gold = '#cfa00a'
         text = '#f5f3f1'
         
         main_layout = QtWidgets.QVBoxLayout(self)
@@ -769,7 +837,7 @@ class BotGUI(QtWidgets.QWidget):
         self.central.setObjectName("central_frame")
         self.central.setStyleSheet(f"""
             QFrame#central_frame {{
-                background: {dark};
+                background: {black};
                 border-radius: 8px;
             }}
         """)
@@ -786,11 +854,12 @@ class BotGUI(QtWidgets.QWidget):
         title_layout.setContentsMargins(12, 0, 12, 0)
         title_layout.setSpacing(8)
         
-        title_label = QtWidgets.QLabel("AstraKeys — by SMisha2")
-        title_label.setStyleSheet(f"font-weight:600; font-size:14px; color: {soft_gold};")
+        title_label = QtWidgets.QLabel("AstraKeys — Solar Gold x Pure Black")
+        title_label.setStyleSheet(f"font-weight:600; font-size:14px; color: {gold};")
         title_layout.addWidget(title_label)
         title_layout.addStretch()
         
+        # 🎘 Кнопки с анимацией
         self.btn_about = QtWidgets.QPushButton("?")
         self.btn_about.setFixedSize(30, 28)
         self.btn_about.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
@@ -801,11 +870,15 @@ class BotGUI(QtWidgets.QWidget):
                 color: {text};
                 font-size: 14px;
                 border-radius: 6px;
-                transition: all 0.3s ease;
+                transition: all 0.2s ease;
             }}
             QPushButton:hover {{
-                background: rgba(212,175,55,0.15);
-                color: {soft_gold};
+                background: rgba(207,160,10,0.2);
+                color: {gold};
+                transform: scale(1.05);
+            }}
+            QPushButton:pressed {{
+                background: rgba(207,160,10,0.3);
             }}
         """)
         self.btn_about.setToolTip("О программе")
@@ -821,10 +894,13 @@ class BotGUI(QtWidgets.QWidget):
                 color: {text};
                 font-size: 14px;
                 border-radius: 6px;
-                transition: all 0.3s ease;
+                transition: all 0.2s ease;
             }}
             QPushButton:hover {{
-                background: rgba(212,175,55,0.15);
+                background: rgba(207,160,10,0.2);
+            }}
+            QPushButton:pressed {{
+                background: rgba(207,160,10,0.3);
             }}
         """)
         self.btn_min.setToolTip("Свернуть")
@@ -840,10 +916,13 @@ class BotGUI(QtWidgets.QWidget):
                 color: {text};
                 font-size: 14px;
                 border-radius: 6px;
-                transition: all 0.3s ease;
+                transition: all 0.2s ease;
             }}
             QPushButton:hover {{
-                background: rgba(212,175,55,0.15);
+                background: rgba(207,160,10,0.2);
+            }}
+            QPushButton:pressed {{
+                background: rgba(207,160,10,0.3);
             }}
         """)
         self.btn_restore.setToolTip("Развернуть")
@@ -859,11 +938,14 @@ class BotGUI(QtWidgets.QWidget):
                 color: {text};
                 font-size: 14px;
                 border-radius: 6px;
-                transition: all 0.3s ease;
+                transition: all 0.2s ease;
             }}
             QPushButton:hover {{
-                background: rgba(255,80,80,0.15);
+                background: rgba(255,80,80,0.2);
                 color: #ff6b6b;
+            }}
+            QPushButton:pressed {{
+                background: rgba(255,80,80,0.3);
             }}
         """)
         self.btn_close.setToolTip("Закрыть")
@@ -872,8 +954,8 @@ class BotGUI(QtWidgets.QWidget):
         title_bar.setLayout(title_layout)
         central_layout.addWidget(title_bar)
         
-        subtitle = QtWidgets.QLabel("Solar Gold · Black Onyx · Nebula")
-        subtitle.setStyleSheet(f"color: {soft_gold}; font-size:12px; margin-left:14px;")
+        subtitle = QtWidgets.QLabel("Premium Color Scheme for Piano Bot")
+        subtitle.setStyleSheet(f"color: {gold}; font-size:12px; margin-left:14px;")
         central_layout.addWidget(subtitle)
         
         # Song display
@@ -888,11 +970,11 @@ class BotGUI(QtWidgets.QWidget):
                 color:{text};
                 font-family: 'Courier New', monospace;
                 font-size: 13px;
-                border: 1px solid rgba(212,175,55,0);
+                border: 1px solid rgba(207,160,10,0);
                 transition: all 0.3s ease;
             }}
             QTextEdit:hover {{
-                border: 1px solid rgba(212,175,55,0.3);
+                border: 1px solid rgba(207,160,10,0.3);
             }}
         """)
         central_layout.addWidget(self.song_display)
@@ -907,16 +989,16 @@ class BotGUI(QtWidgets.QWidget):
                 border-radius:8px;
                 padding:8px;
                 color:{text};
-                border: 1px solid rgba(212,175,55,0);
+                border: 1px solid rgba(207,160,10,0);
                 transition: all 0.3s ease;
             }}
             QTextEdit:hover {{
-                border: 1px solid rgba(212,175,55,0.2);
+                border: 1px solid rgba(207,160,10,0.2);
             }}
         """)
         central_layout.addWidget(self.song_input)
         
-        # Add button
+        # Add button with 🎨 animation
         add_row = QtWidgets.QHBoxLayout()
         self.add_btn = QtWidgets.QPushButton("Добавить песню")
         self.add_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
@@ -924,14 +1006,18 @@ class BotGUI(QtWidgets.QWidget):
         self.add_btn.setStyleSheet(f"""
             QPushButton {{
                 border-radius:8px;
-                border:1px solid rgba(212,175,55,0.2);
-                background: rgba(212,175,55,0.05);
+                border:1px solid rgba(207,160,10,0.2);
+                background: rgba(207,160,10,0.05);
                 color:{text};
-                transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
             }}
             QPushButton:hover {{
-                background: rgba(212,175,55,0.15);
-                border:1px solid rgba(212,175,55,0.5);
+                background: rgba(207,160,10,0.15);
+                border:1px solid rgba(207,160,10,0.5);
+                padding: -2px;
+            }}
+            QPushButton:pressed {{
+                background: rgba(207,160,10,0.25);
             }}
         """)
         add_row.addWidget(self.add_btn)
@@ -939,7 +1025,7 @@ class BotGUI(QtWidgets.QWidget):
         central_layout.addLayout(add_row)
         self.add_btn.clicked.connect(self.add_song_from_input)
         
-        # Control buttons
+        # Control buttons with animation
         control_row = QtWidgets.QHBoxLayout()
         self.start_btn = QtWidgets.QPushButton("Start / Pause (F1)")
         self.next_btn = QtWidgets.QPushButton("Next Song (F8)")
@@ -949,14 +1035,17 @@ class BotGUI(QtWidgets.QWidget):
         button_style = f"""
             QPushButton {{
                 border-radius:8px;
-                border:1px solid rgba(212,175,55,0.15);
-                background: rgba(212,175,55,0.05);
+                border:1px solid rgba(207,160,10,0.15);
+                background: rgba(207,160,10,0.05);
                 color:{text};
-                transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
             }}
             QPushButton:hover {{
-                background: rgba(212,175,55,0.15);
-                border:1px solid rgba(212,175,55,0.4);
+                background: rgba(207,160,10,0.15);
+                border:1px solid rgba(207,160,10,0.4);
+            }}
+            QPushButton:pressed {{
+                background: rgba(207,160,10,0.25);
             }}
         """
         
@@ -980,15 +1069,15 @@ class BotGUI(QtWidgets.QWidget):
                 border-radius:10px;
                 padding:6px;
                 color:{text};
-                border: 1px solid rgba(212,175,55,0.1);
+                border: 1px solid rgba(207,160,10,0.1);
                 transition: all 0.3s ease;
             }}
             QListWidget:hover {{
-                border: 1px solid rgba(212,175,55,0.2);
+                border: 1px solid rgba(207,160,10,0.2);
             }}
             QListWidget::item:selected {{
-                background: rgba(212,175,55,0.2);
-                color: {soft_gold};
+                background: rgba(207,160,10,0.2);
+                color: {gold};
                 border-radius: 4px;
             }}
         """)
@@ -1004,13 +1093,13 @@ class BotGUI(QtWidgets.QWidget):
         self.remove_btn.setStyleSheet(f"""
             QPushButton {{
                 border-radius:6px;
-                border:1px solid rgba(212,175,55,0.15);
-                background: rgba(212,175,55,0.05);
+                border:1px solid rgba(207,160,10,0.15);
+                background: rgba(207,160,10,0.05);
                 color:{text};
                 transition: all 0.2s ease;
             }}
             QPushButton:hover {{
-                background: rgba(212,175,55,0.15);
+                background: rgba(207,160,10,0.15);
             }}
         """)
         list_controls.addWidget(self.remove_btn)
@@ -1021,16 +1110,52 @@ class BotGUI(QtWidgets.QWidget):
         self.rename_btn.setStyleSheet(f"""
             QPushButton {{
                 border-radius:6px;
-                border:1px solid rgba(212,175,55,0.15);
-                background: rgba(212,175,55,0.05);
+                border:1px solid rgba(207,160,10,0.15);
+                background: rgba(207,160,10,0.05);
                 color:{text};
                 transition: all 0.2s ease;
             }}
             QPushButton:hover {{
-                background: rgba(212,175,55,0.15);
+                background: rgba(207,160,10,0.15);
             }}
         """)
         list_controls.addWidget(self.rename_btn)
+        
+        # 💾 КНОПКИ СОХРАНЕНИЯ ПЛЕЙЛИСТА
+        self.save_btn = QtWidgets.QPushButton("Сохранить")
+        self.save_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.save_btn.setFixedHeight(30)
+        self.save_btn.setStyleSheet(f"""
+            QPushButton {{
+                border-radius:6px;
+                border:1px solid rgba(207,160,10,0.15);
+                background: rgba(207,160,10,0.05);
+                color:{text};
+                transition: all 0.2s ease;
+            }}
+            QPushButton:hover {{
+                background: rgba(76, 200, 76, 0.15);
+            }}
+        """)
+        list_controls.addWidget(self.save_btn)
+        
+        self.load_btn = QtWidgets.QPushButton("Загрузить")
+        self.load_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.load_btn.setFixedHeight(30)
+        self.load_btn.setStyleSheet(f"""
+            QPushButton {{
+                border-radius:6px;
+                border:1px solid rgba(207,160,10,0.15);
+                background: rgba(207,160,10,0.05);
+                color:{text};
+                transition: all 0.2s ease;
+            }}
+            QPushButton:hover {{
+                background: rgba(100, 150, 255, 0.15);
+            }}
+        """)
+        list_controls.addWidget(self.load_btn)
+        
         list_controls.addStretch()
         leftcol.addLayout(list_controls)
         mid.addLayout(leftcol, 2)
@@ -1050,7 +1175,7 @@ class BotGUI(QtWidgets.QWidget):
         error_layout.addWidget(QtWidgets.QLabel("Error Rate:"))
         self.error_slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
         self.error_slider.setMinimum(0)
-        self.error_slider.setMaximum(20)
+        self.error_slider.setMaximum(100)
         self.error_slider.setValue(int(self.bot.error_rate * 100))
         self.error_slider.setStyleSheet(f"""
             QSlider::groove:horizontal {{
@@ -1059,13 +1184,13 @@ class BotGUI(QtWidgets.QWidget):
                 border-radius: 3px;
             }}
             QSlider::handle:horizontal {{
-                background: #ff6b6b;
+                background: {gold};
                 width: 14px;
                 border-radius: 7px;
                 transition: all 0.2s ease;
             }}
             QSlider::handle:horizontal:hover {{
-                background: #ff8585;
+                background: #e8b81f;
                 width: 16px;
             }}
         """)
@@ -1102,13 +1227,13 @@ class BotGUI(QtWidgets.QWidget):
             QComboBox {{
                 padding: 6px;
                 border-radius: 6px;
-                background: rgba(212,175,55,0.05);
-                border: 1px solid rgba(212,175,55,0.2);
+                background: rgba(207,160,10,0.05);
+                border: 1px solid rgba(207,160,10,0.2);
                 color:{text};
                 transition: all 0.3s ease;
             }}
             QComboBox:hover {{
-                background: rgba(212,175,55,0.12);
+                background: rgba(207,160,10,0.12);
             }}
         """)
         mode_layout.addWidget(self.mode_combo)
@@ -1130,13 +1255,13 @@ class BotGUI(QtWidgets.QWidget):
         self.check_update_btn.setStyleSheet(f"""
             QPushButton {{
                 border-radius:8px;
-                border:1px solid rgba(212,175,55,0.15);
-                background: rgba(212,175,55,0.05);
+                border:1px solid rgba(207,160,10,0.15);
+                background: rgba(207,160,10,0.05);
                 color:{text};
                 transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             }}
             QPushButton:hover {{
-                background: rgba(212,175,55,0.15);
+                background: rgba(207,160,10,0.15);
             }}
         """)
         
@@ -1146,13 +1271,13 @@ class BotGUI(QtWidgets.QWidget):
         self.download_btn.setStyleSheet(f"""
             QPushButton {{
                 border-radius:8px;
-                border:1px solid rgba(212,175,55,0.15);
-                background: rgba(212,175,55,0.05);
+                border:1px solid rgba(207,160,10,0.15);
+                background: rgba(207,160,10,0.05);
                 color:{text};
                 transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             }}
             QPushButton:hover {{
-                background: rgba(212,175,55,0.15);
+                background: rgba(207,160,10,0.15);
             }}
         """)
         
@@ -1164,7 +1289,7 @@ class BotGUI(QtWidgets.QWidget):
         self.download_btn.clicked.connect(self.open_releases_page)
         
         footer = QtWidgets.QHBoxLayout()
-        self.signature = QtWidgets.QLabel("AstraKeys — by SMisha2")
+        self.signature = QtWidgets.QLabel("Исходный код: SMisha2")
         self.signature.setStyleSheet(f"color: {gold};")
         build_date = datetime.now().strftime("%d.%m.%Y")
         self.version_label = QtWidgets.QLabel(f"v{CURRENT_VERSION} · {build_date}")
@@ -1181,7 +1306,7 @@ class BotGUI(QtWidgets.QWidget):
         self.setStyleSheet(f"""
             QWidget {{ 
                 font-family: 'Segoe UI', Arial, sans-serif; 
-                background: {dark};
+                background: {black};
                 color: {text};
             }}
             QSlider::groove:horizontal {{
@@ -1190,7 +1315,7 @@ class BotGUI(QtWidgets.QWidget):
                 border-radius: 4px;
             }}
             QSlider::handle:horizontal {{
-                background: {soft_gold}; 
+                background: {gold}; 
                 width: 14px; 
                 border-radius: 7px;
                 transition: all 0.2s ease;
@@ -1200,7 +1325,7 @@ class BotGUI(QtWidgets.QWidget):
                 border-radius: 8px; 
             }}
             QProgressBar::chunk {{
-                background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 {gold}, stop:1 {soft_gold}); 
+                background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 {gold}, stop:1 {gold}); 
                 border-radius: 8px;
             }}
         """)
@@ -1222,6 +1347,8 @@ class BotGUI(QtWidgets.QWidget):
         self.remove_btn.clicked.connect(self.remove_selected)
         self.rename_btn.clicked.connect(self.rename_selected)
         self.error_slider.valueChanged.connect(self.error_rate_changed)
+        self.save_btn.clicked.connect(self.save_playlist)
+        self.load_btn.clicked.connect(self.load_playlist)
         
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowType.WindowMaximizeButtonHint | QtCore.Qt.WindowType.WindowMinimizeButtonHint)
     
@@ -1235,6 +1362,7 @@ class BotGUI(QtWidgets.QWidget):
     
     def close_application(self):
         self.save_window_state()
+        self.bot.save_playlist()
         self.close()
     
     def save_window_state(self):
@@ -1318,6 +1446,24 @@ class BotGUI(QtWidgets.QWidget):
                 self.song_list.item(row).setText(f"{new_name.strip()} — {len(content)} chars")
                 print(f"Renamed song to '{new_name.strip()}'")
     
+    def save_playlist(self):
+        """💾 Сохранить плейлист"""
+        if self.bot.save_playlist():
+            QtWidgets.QMessageBox.information(self, "✅ Успешно", "Плейлист сохранен в файл playlist.json")
+        else:
+            QtWidgets.QMessageBox.warning(self, "❌ Ошибка", "Не удалось сохранить плейлист")
+    
+    def load_playlist(self):
+        """📂 Загрузить плейлист"""
+        if self.bot.load_playlist():
+            self.song_list.clear()
+            for name, content in self.bot.playlist:
+                self.song_list.addItem(f"{name} — {len(content)} chars")
+            self.song_list.setCurrentRow(self.bot.song_index)
+            QtWidgets.QMessageBox.information(self, "✅ Успешно", "Плейлист загружен из файла playlist.json")
+        else:
+            QtWidgets.QMessageBox.warning(self, "❌ Ошибка", "Не удалось загрузить плейлист")
+    
     def toggle_start(self):
         self.bot.playing = not self.bot.playing
         self.set_on_top_if_playing()
@@ -1392,7 +1538,7 @@ class BotGUI(QtWidgets.QWidget):
                     
                     highlighted = (
                         f'<span style="color: #ccc;">{before}</span>'
-                        f'<span style="background-color: rgba(255,216,106,0.4); border-radius: 3px; padding: 0 2px; color: #ffd86a; font-weight: bold;">'
+                        f'<span style="background-color: rgba(207,160,10,0.4); border-radius: 3px; padding: 0 2px; color: #cfa00a; font-weight: bold;">'
                         f'{chord}'
                         f'</span>'
                         f'<span style="color: #ccc;">{after}</span>'
@@ -1407,7 +1553,7 @@ class BotGUI(QtWidgets.QWidget):
                 
                 highlighted = (
                     f'<span style="color: #ccc;">{before}</span>'
-                    f'<span style="background-color: rgba(255,216,106,0.5); border-radius: 3px; padding: 0 2px; color: #ffd86a; font-weight: bold;">'
+                    f'<span style="background-color: rgba(207,160,10,0.5); border-radius: 3px; padding: 0 2px; color: #cfa00a; font-weight: bold;">'
                     f'{current_char}'
                     f'</span>'
                     f'<span style="color: #ccc;">{after}</span>'
