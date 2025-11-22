@@ -57,10 +57,10 @@ RU_EN_MAPPING = {
 }
 
 # ✅ ИСПРАВЛЕННЫЙ ФИЛЬТР - ТОЛЬКО БЕЛЫЕ КЛАВИШИ И СПЕЦИАЛЬНЫЕ СИМВОЛЫ
-ROBLOX_KEYS = "[]!@$%^*+-#(QWETYIOPSDGHJLZCVB"
+ROBLOX_KEYS = "!@$%^*(QWERTYUIOPASDFGHJKLZXCVBNM1234567890qwertyuiopasdfghjklzxcvbnm"
 
 # БЕЛЫЕ КЛАВИШИ ДЛЯ ОШИБОЧНОГО РЕЖИМА
-WHITE_KEYS = "qwertyuiopasdfghjklzxcvbnm1234567890"
+WHITE_KEYS = "QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm1234567890"
 
 # ============= AUTO-UPDATE HELPERS =============
 def download_asset_to_file(url, dest_path, progress_callback=None, max_retries=3):
@@ -233,6 +233,7 @@ class RobloxPianoBot:
             if sanitized:
                 self.playlist.append((name, sanitized))
         
+        # Загружаем плейлист из файла если существует
         self.load_playlist()
         
         if not self.playlist:
@@ -254,9 +255,6 @@ class RobloxPianoBot:
         self.start_delay = 0.03
         self.active_keys = set()
         self.last_played_time = time.time()
-        
-        # ✨ ИСПРАВКА: Сохраняем какие РЕАЛЬНО нажаты клавиши (для mode 4)
-        self.played_chord = []  # Сохраняем реально нажатые клавиши
         
         print("🎹 AstraKeys Bot v" + CURRENT_VERSION + " initialized")
         print("▶ F1 Play/Pause | F2 Restart | F3 Skip25 | F4 Exit")
@@ -500,14 +498,9 @@ class RobloxPianoBot:
     
     def play_chord(self, chord):
         """Play chord with mode-specific timing"""
-        # Сохраняем исходный аккорд
-        self.played_chord = chord.copy()
-        
         if self.mode == 4:
             # Ошибочный режим: применяем ошибки ПЕРЕД нажатием
             chord = [self.apply_error(k) for k in chord]
-            # 🔴 ВАЖНО: Сохраняем РЕАЛЬНО нажатые клавиши (с ошибками)
-            self.played_chord = chord.copy()
         
         if self.mode == 1:
             for k in chord:
@@ -534,6 +527,7 @@ class RobloxPianoBot:
             max_press_time = base_press_delay + (len(chord) * 0.003) + 0.002
             time.sleep(max_press_time)
         elif self.mode == 4:
+            # Ошибочный режим: просто нажимаем ошибочные клавиши
             for k in chord:
                 self.press_key(k)
     
@@ -541,33 +535,25 @@ class RobloxPianoBot:
         """Release chord with mode-specific timing"""
         if not chord:
             return
-        
-        # 🔴 ИСПРАВКА: Отпускаем РЕАЛЬНО нажатые клавиши (те, что в self.played_chord)
-        # А не исходные ноты из аккорда
-        release_keys = self.played_chord if self.played_chord else chord
-        
         if self.mode == 1:
-            for k in release_keys:
+            for k in chord:
                 self.release_key(k)
         elif self.mode == 2:
-            for k in release_keys:
+            for k in chord:
                 delay = random.uniform(0.05, 0.2)
                 t = threading.Timer(delay, self.release_key, args=[k])
                 t.daemon = True
                 t.start()
         elif self.mode == 3:
             base_release_delay = random.uniform(0.015, 0.04)
-            for i, k in enumerate(release_keys):
+            for i, k in enumerate(chord):
                 release_delay = base_release_delay + (i * 0.005)
                 t_release = threading.Timer(release_delay, self.release_key, args=[k])
                 t_release.daemon = True
                 t_release.start()
         else:
-            for k in release_keys:
+            for k in chord:
                 self.release_key(k)
-        
-        # Очищаем после отпускания
-        self.played_chord = []
     
     def play_song(self):
         time.sleep(0.5)
@@ -580,7 +566,6 @@ class RobloxPianoBot:
                     self.frozen_note_index = 0
                     self.release_all()
                     current_chord = None
-                    self.played_chord = []  # 🔴 ИСПРАВКА
                     print("Restarted")
                     while self.hold_star:
                         time.sleep(0.01)
@@ -646,7 +631,7 @@ class RobloxPianoBot:
                 
                 self.play_chord(chord)
                 current_chord = chord
-                print(f"Played: {chord} at pos {current_index} | Actual: {self.played_chord}")
+                print(f"Played: {chord} at pos {current_index}")
                 
                 while self.hold_star and self.playing and not self.restart:
                     time.sleep(0.01)
@@ -1679,10 +1664,10 @@ class BotGUI(QtWidgets.QWidget):
 if __name__ == "__main__":
     # Default playlist with named songs
     default_playlist = [
-        ("Stairway to Heaven", r"[eT] [eT] [6eT] [ey] [6eT] [4qe] [qe] [6qe] [qE] 4 [6qe]"),
-        ("Minecraft Theme", r"l--l--l--l-lzlk"),
-        ("Twinkle Twinkle", r"fffff[4qf]spsfspsg"),
-        ("Русская мелодия", r"ааааа[аф]ддддаа[см]мммм")
+        ("1", r"[eT] [eT] [6eT] [ey] [6eT] [4qe] [qe] [6qe] [qE] 4 [6qe]"),
+        ("4", r"l--l--l--l-lzlk"),
+        ("8", r"fffff[4qf]spsfspsg"),
+        ("8", r"ааааа[аф]ддддаа[см]мммм")
     ]
     
     bot = RobloxPianoBot(default_playlist)
