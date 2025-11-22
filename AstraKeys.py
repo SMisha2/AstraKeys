@@ -57,7 +57,7 @@ RU_EN_MAPPING = {
 }
 
 # ✅ ИСПРАВЛЕННЫЙ ФИЛЬТР - ТОЛЬКО БЕЛЫЕ КЛАВИШИ И СПЕЦИАЛЬНЫЕ СИМВОЛЫ
-ROBLOX_KEYS = "[]!@$%^*+-#(QWERTYUIOPASDFGHJKLZXCVBNM1234567890qwertyuiopasdfghjklzxcvbnm"
+ROBLOX_KEYS = "[]!@$%^*+-#(QWETYIOPSDGHJLZCVB"
 
 # БЕЛЫЕ КЛАВИШИ ДЛЯ ОШИБОЧНОГО РЕЖИМА
 WHITE_KEYS = "qwertyuiopasdfghjklzxcvbnm1234567890"
