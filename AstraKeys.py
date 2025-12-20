@@ -1,4 +1,4 @@
-# AstraKeys_v11.9 — Black Onyx / Solar Gold / Nebula blend
+# AstraKeys_v1.1.9 — Black Onyx / Solar Gold / Nebula blend
 # by SMisha2
 # Features: Russian keyboard support, adjustable error mode, resizable window, overlay note display with transparency and fullscreen
 CURRENT_VERSION = "1.1.9"
@@ -530,7 +530,7 @@ class RobloxPianoBot:
                 # Если нужен Shift, нажимаем его временно
                 if needs_shift:
                     self.keyboard.press(Key.shift)
-                    time.sleep(0.001)  # Короткая задержка для надежности
+                    time.sleep(0.0001)  # Очень короткая задержка
                 
                 # Нажимаем основную клавишу
                 self.keyboard.press(base_key)
@@ -539,7 +539,7 @@ class RobloxPianoBot:
                 
                 # Если использовали Shift, сразу отпускаем его
                 if needs_shift:
-                    time.sleep(0.001)  # Короткая задержка для надежности
+                    time.sleep(0.0001)  # Очень короткая задержка
                     self.keyboard.release(Key.shift)
                     print("DEBUG: Released Shift immediately after use")
                 
@@ -614,7 +614,7 @@ class RobloxPianoBot:
                                 '"': "'", '<': ',', '>': '.', '?': '/', '|': '\\', 
                                 '~': '`'
                             }
-                            base_key = shift_mapping[k]
+                            base_key = shift_mapping.get(k, k.lower() if k.isupper() and k.isalpha() else k)
                         else:
                             base_key = k
                         
@@ -759,71 +759,31 @@ class RobloxPianoBot:
         if self.mode == 4:
             chord = [self.apply_error(k) for k in chord]
         
-        # Разделяем клавиши на категории
-        high_priority = []  # Заглавные буквы и спецсимволы
-        low_priority = []   # Строчные буквы и цифры
-        
-        for k in chord:
-            if k.isupper() and k.isalpha():
-                # Заглавные буквы
-                high_priority.append(k)
-            elif not k.isalnum() and k not in [' ', '\t', '\n', '\r']:
-                # Спецсимволы (все, что не буква, не цифра и не пробельный символ)
-                high_priority.append(k)
-            elif k.islower() and k.isalpha():
-                # Строчные буквы
-                low_priority.append(k)
-            elif k.isdigit():
-                # Цифры
-                low_priority.append(k)
-            else:
-                # Все остальные символы (на всякий случай) относим к низкому приоритету
-                low_priority.append(k)
-        
         if self.mode == 1:
-            # Сначала клавиши с высоким приоритетом, потом с низким
-            for k in high_priority:
+            # В режиме 1 все клавиши нажимаются практически одновременно
+            for k in chord:
                 self.press_key(k)
-            for k in low_priority:
-                self.press_key(k)
-            # Добавляем небольшую задержку для надежности
-            time.sleep(0.01)
+            time.sleep(0.0005)  # Очень короткая задержка
         elif self.mode == 2:
             press_threads = []
-            base_delay = 0.01
-            # Клавиши с высоким приоритетом с минимальной задержкой
-            for i, k in enumerate(high_priority):
-                delay = base_delay * 0.5 + random.uniform(0.001, 0.005)
+            base_delay = 0.001  # Уменьшена базовая задержка
+            for i, k in enumerate(chord):
+                delay = base_delay + random.uniform(0.0001, 0.001)
                 t = threading.Timer(delay, self.press_key, args=[k])
                 t.daemon = True
                 t.start()
                 press_threads.append(t)
-            # Клавиши с низким приоритетом с обычной задержкой
-            for i, k in enumerate(low_priority):
-                delay = base_delay + random.uniform(0.005, 0.02)
-                t = threading.Timer(delay, self.press_key, args=[k])
-                t.daemon = True
-                t.start()
-                press_threads.append(t)
-            time.sleep(base_delay + 0.025)
+            time.sleep(base_delay + 0.005)  # Уменьшена общая задержка
         elif self.mode == 3:
             press_threads = []
-            base_press_delay = random.uniform(0.002, 0.008)
-            # Клавиши с высоким приоритетом с прогрессивной задержкой
-            for i, k in enumerate(high_priority):
-                press_delay = base_press_delay * 0.7 + (i * 0.002)
+            base_press_delay = random.uniform(0.0002, 0.0008)  # Уменьшены задержки
+            for i, k in enumerate(chord):
+                press_delay = base_press_delay + (i * 0.0002)
                 t_press = threading.Timer(press_delay, self.press_key, args=[k])
                 t_press.daemon = True
                 t_press.start()
                 press_threads.append(t_press)
-            # Клавиши с низким приоритетом с прогрессивной задержкой
-            for i, k in enumerate(low_priority):
-                press_delay = base_press_delay + (i * 0.003)
-                t_press = threading.Timer(press_delay, self.press_key, args=[k])
-                t_press.daemon = True
-                t_press.start()
-                press_threads.append(t_press)
-            max_press_time = base_press_delay + (max(len(high_priority), len(low_priority)) * 0.003) + 0.002
+            max_press_time = base_press_delay + (len(chord) * 0.0003) + 0.0002
             time.sleep(max_press_time)
     
     def release_chord(self, chord):
@@ -831,66 +791,31 @@ class RobloxPianoBot:
         if not chord:
             return
         
-        # Разделяем клавиши на категории
-        high_priority = []  # Заглавные буквы и спецсимволы
-        low_priority = []   # Строчные буквы и цифры
-        
-        for k in chord:
-            if k.isupper() and k.isalpha():
-                # Заглавные буквы
-                high_priority.append(k)
-            elif not k.isalnum() and k not in [' ', '\t', '\n', '\r']:
-                # Спецсимволы (все, что не буква, не цифра и не пробельный символ)
-                high_priority.append(k)
-            elif k.islower() and k.isalpha():
-                # Строчные буквы
-                low_priority.append(k)
-            elif k.isdigit():
-                # Цифры
-                low_priority.append(k)
-            else:
-                # Все остальные символы (на всякий случай) относим к низкому приоритету
-                low_priority.append(k)
-        
         if self.mode == 1:
-            # Отпускаем в обратном порядке: сначала низкий приоритет, потом высокий
-            for k in reversed(low_priority):
+            # В режиме 1 все клавиши отпускаются практически одновременно
+            for k in reversed(chord):
                 self.release_key(k)
-            for k in reversed(high_priority):
-                self.release_key(k)
+            time.sleep(0.0005)  # Очень короткая задержка
         elif self.mode == 2:
             release_threads = []
-            # Клавиши с низким приоритетом с большими задержками при отпускании
-            for k in reversed(low_priority):
-                delay = random.uniform(0.05, 0.2)
-                t = threading.Timer(delay, self.release_key, args=[k])
-                t.daemon = True
-                t.start()   
-                release_threads.append(t)
-            # Клавиши с высоким приоритетом с меньшими задержками при отпускании
-            for k in reversed(high_priority):
-                delay = random.uniform(0.03, 0.15)
+            base_delay = 0.005  # Уменьшена базовая задержка
+            for k in reversed(chord):
+                delay = base_delay + random.uniform(0.0005, 0.005)
                 t = threading.Timer(delay, self.release_key, args=[k])
                 t.daemon = True
                 t.start()
                 release_threads.append(t)
+            time.sleep(base_delay + 0.01)  # Уменьшена общая задержка
         elif self.mode == 3:
             release_threads = []
-            base_release_delay = random.uniform(0.015, 0.04)
-            # Клавиши с низким приоритетом с прогрессивной задержкой при отпускании
-            for i, k in enumerate(reversed(low_priority)):
-                release_delay = base_release_delay + (i * 0.005)
+            base_release_delay = random.uniform(0.0015, 0.004)  # Уменьшены задержки
+            for i, k in enumerate(reversed(chord)):
+                release_delay = base_release_delay + (i * 0.0005)
                 t_release = threading.Timer(release_delay, self.release_key, args=[k])
                 t_release.daemon = True
                 t_release.start()
                 release_threads.append(t_release)
-            # Клавиши с высоким приоритетом с прогрессивной задержкой при отпускании
-            for i, k in enumerate(reversed(high_priority)):
-                release_delay = base_release_delay * 0.8 + (i * 0.004)
-                t_release = threading.Timer(release_delay, self.release_key, args=[k])
-                t_release.daemon = True
-                t_release.start()
-                release_threads.append(t_release)
+            time.sleep(base_release_delay + 0.01)
         else:
             for k in reversed(chord):
                 self.release_key(k)
@@ -929,7 +854,7 @@ class RobloxPianoBot:
                 if char.isspace():
                     if not self.freeze_note:
                         self.note_index += 1
-                    time.sleep(0.01)
+                    time.sleep(0.001)  # Уменьшена задержка
                     continue
                 # Handle F3 Skip25
                 if self.skip_notes > 0 and not self.freeze_note:
@@ -945,7 +870,7 @@ class RobloxPianoBot:
                     continue
                 # Wait for pedal press to play next note/chord
                 if not self.hold_star:
-                    time.sleep(0.01)
+                    time.sleep(0.001)  # Уменьшена задержка
                     continue
                 # Parse chord or single note
                 if char == "[":
@@ -966,24 +891,24 @@ class RobloxPianoBot:
                 if chord and chord[0] in ["[", "]"]:
                     if not self.freeze_note:
                         self.note_index = next_index
-                    time.sleep(0.01)
+                    time.sleep(0.001)  # Уменьшена задержка
                     continue
                 # Activate Roblox before playing
                 if activate_roblox_window():
                     print("DEBUG: Roblox window activated")
                 else:
                     print("DEBUG: Failed to activate Roblox window")
-                time.sleep(0.02)  # Small delay to ensure window is active
+                time.sleep(0.005)  # Уменьшена задержка для активации окна
                 # Apply start delay if set
                 if self.start_delay > 0:
-                    time.sleep(self.start_delay)
+                    time.sleep(self.start_delay * 0.5)  # Уменьшена задержка в два раза
                 # Play the chord
                 self.play_chord(chord)
                 current_chord = chord
                 print(f"Played: {chord} at pos {current_index}")
                 # Keep holding the chord while pedal is pressed
                 while self.hold_star and self.playing and not self.restart:
-                    time.sleep(0.01)
+                    time.sleep(0.001)  # Уменьшена задержка
                 # Release the chord when pedal is released
                 if current_chord:
                     self.release_chord(current_chord)
@@ -991,10 +916,10 @@ class RobloxPianoBot:
                 # Move to next note only if not frozen
                 if not self.freeze_note:
                     self.note_index = next_index
-                time.sleep(0.001)
+                time.sleep(0.0005)  # Уменьшена задержка
             except Exception as e:
                 print("Main loop error:", e)
-                time.sleep(0.1)
+                time.sleep(0.01)  # Уменьшена задержка при ошибке
 # ---------------- About Dialog ----------------
 class AboutDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
