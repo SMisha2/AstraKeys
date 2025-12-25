@@ -1,8 +1,8 @@
-# AstraKeys_v1.1.11 — Black Onyx / Solar Gold / Nebula blend
+# AstraKeys_v1.1.91 — Black Onyx / Solar Gold / Nebula blend
 # by SMisha2
 # Features: Russian keyboard support, adjustable modes, resizable window, overlay note display with transparency
 # Updated with animated background, playlist management, detailed logging, and improved update process
-CURRENT_VERSION = "1.1.1"
+CURRENT_VERSION = "1.1.91"
 GITHUB_OWNER = "SMisha2"
 GITHUB_REPO = "AstraKeys"
 ASSET_NAME = "AstraKeys.exe"
