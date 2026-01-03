@@ -2078,10 +2078,10 @@ class BotGUI(QtWidgets.QWidget):
 if __name__ == "__main__":
     # Default playlist with named songs
     default_playlist = [
-        ("Stairway to Heaven", r"[eT] [eT] [6eT] [ey] [6eT] [4qe] [qe] [6qe] [qE] 4 [6qe]"),
-        ("Minecraft Theme", r"l--l--l--l-lzlk"),
-        ("Twinkle Twinkle", r"fffff[4qf]spsfspsg"),
-        ("Русская мелодия", r"ааааа[аф]ддддаа[см]мммм")
+        ("random_starting, good_ending", r"[eT] [eT] [6eT] [ey] [6eT] [4qe] [qe] [6qe] [qE] 4 [6qe] 6 [QPS] C [Sc] [*Ti] Z [SO] [HO] i L [Wsl] Z [ESi] L [LP] [EZ] c P"),
+        ("tags:atleast", r"l--l--l--l-lzlklzl"),
+        ("GG", r"fffff[4qf]spsfspsg"),
+        ("add_to_the_corner", r"d h f j [Ffd][xbgf][xd]")
     ]
     bot = RobloxPianoBot(default_playlist)
     player_thread = threading.Thread(target=bot.play_song, daemon=True)
