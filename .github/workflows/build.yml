@@ -22,7 +22,7 @@ jobs:
         run: |
           pip install pyqt6
           pip install mido pyperclip psutil
-          pip install pyinstaller pywin32 pynput requests PyQt6
+          pip install pyinstaller pywin32 pynput requests PyQt6 midiutil
 
 
       - name: Build EXE
