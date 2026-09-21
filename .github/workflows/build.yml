@@ -4,6 +4,10 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch: {} 
+
+permissions:
+  contents: write        
 
 jobs:
   build:
@@ -17,22 +21,57 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
 
       - name: Install dependencies
         run: |
-          pip install pyqt6
-          pip install mido pyperclip psutil
-          pip install pyinstaller pywin32 pynput requests PyQt6 midiutil
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
+      - name: Verify icon exists (fail early with clear message)
+        run: |
+          if not exist "assets\icon.ico" (
+            echo ❌ assets\icon.ico not found
+            exit 1
+          )
+        shell: cmd
 
       - name: Build EXE
         run: |
-          pyinstaller --noconfirm --onefile --windowed --icon=assets/icon.ico AstraKeys.py
+          pyinstaller ^
+            --noconfirm ^
+            --clean ^
+            --onefile ^
+            --windowed ^
+            --name AstraKeys ^
+            --icon assets/icon.ico ^
+            --hidden-import pynput.keyboard._win32 ^
+            --hidden-import pynput.mouse._win32 ^
+            --hidden-import sounddevice ^
+            --hidden-import mido.backends.rtmidi ^
+            --hidden-import win32gui ^
+            --hidden-import win32con ^
+            --collect-binaries sounddevice ^
+            --collect-binaries rtmidi ^
+            --collect-submodules pynput ^
+            --collect-data midiutil ^
+            AstraKeys.py
         shell: cmd
 
-      - name: Upload Release Artifact
-        uses: softprops/action-gh-release@v1
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AstraKeys-windows
+          path: dist/AstraKeys.exe
+          if-no-files-found: error
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
         with:
           files: dist/AstraKeys.exe
+          generate_release_notes: true
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
