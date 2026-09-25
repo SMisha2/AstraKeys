@@ -1,18 +1,18 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0a0a0a,40:1a1a1a,70:2b2418,100:d4af37&height=220&section=header&text=AstraKeys&fontSize=96&fontColor=d4af37&fontAlignY=38&fontFamily=Georgia&desc=Автоматический%20пианист%20для%20Roblox&descAlignY=62&descSize=17&descColor=a8a8a8&animation=fadeIn" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0a0a0a,40:1a1a1a,70:2b2418,100:d4af37&height=220&section=header&text=AstraKeys&fontSize=96&fontColor=d4af37&fontAlignY=38&fontFamily=Georgia&desc=Automatic%20pianist%20for%20Roblox&descAlignY=62&descSize=17&descColor=a8a8a8&animation=fadeIn" width="100%"/>
 
 <br>
 
-### ✨ Играйте · Записывайте · Редактируйте · Экспортируйте ✨
+### ✨ Play · Record · Edit · Export ✨
 
 <br>
 
 <a href="https://github.com/SMisha2/AstraKeys/releases/latest">
-  <img src="https://img.shields.io/badge/⬇_Скачать_AstraKeys.exe-d4af37?style=for-the-badge&labelColor=0a0a0a&logo=windows&logoColor=d4af37" alt="Download">
+  <img src="https://img.shields.io/badge/⬇_Download_AstraKeys.exe-d4af37?style=for-the-badge&labelColor=0a0a0a&logo=windows&logoColor=d4af37" alt="Download">
 </a>
-<a href="#-документация">
-  <img src="https://img.shields.io/badge/📖_Документация-8a8a8a?style=for-the-badge&labelColor=0a0a0a" alt="Docs">
+<a href="#-documentation">
+  <img src="https://img.shields.io/badge/📖_Documentation-8a8a8a?style=for-the-badge&labelColor=0a0a0a" alt="Docs">
 </a>
 <a href="https://github.com/SMisha2/AstraKeys/issues">
   <img src="https://img.shields.io/badge/🐛_Report_Bug-e05a4d?style=for-the-badge&labelColor=0a0a0a" alt="Issues">
@@ -42,7 +42,7 @@
 
 <div align="center">
 
-## 📸 Скриншоты
+## 📸 Screenshots
 
 </div>
 
@@ -51,39 +51,39 @@
 <table>
 <tr>
 <td align="center" width="50%">
-<img src="docs/screenshot_main.png" alt="Главное окно" width="100%"/>
+<img src="docs/screenshot_main.png" alt="Main window" width="100%"/>
 <br><br>
-<b>🎹 Главное окно</b>
+<b>🎹 Main window</b>
 <br>
-<sub>Плейлист, плеер и настройки</sub>
+<sub>Playlist, player, and settings</sub>
 </td>
 <td align="center" width="50%">
-<img src="docs/screenshot_overlay.png" alt="Оверлей нот" width="100%"/>
+<img src="docs/screenshot_overlay.png" alt="Notes overlay" width="100%"/>
 <br><br>
-<b>🎼 Оверлей нот</b>
+<b>🎼 Notes overlay</b>
 <br>
-<sub>Ноты поверх игры в реальном времени</sub>
+<sub>Live notes on top of the game</sub>
 </td>
 </tr>
 <tr>
 <td align="center" width="50%">
-<img src="docs/screenshot_editor.png" alt="Редактор записей" width="100%"/>
+<img src="docs/screenshot_editor.png" alt="Recording editor" width="100%"/>
 <br><br>
-<b>✂️ Редактор записей</b>
+<b>✂️ Recording editor</b>
 <br>
-<sub>Обрезка, склейка, квантизация</sub>
+<sub>Trim, concat, quantize</sub>
 </td>
 <td align="center" width="50%">
-<img src="docs/screenshot_recordings.png" alt="Менеджер записей" width="100%"/>
+<img src="docs/screenshot_recordings.png" alt="Recordings manager" width="100%"/>
 <br><br>
-<b>📚 Менеджер записей</b>
+<b>📚 Recordings manager</b>
 <br>
-<sub>Поиск, избранное, экспорт</sub>
+<sub>Search, favorites, export</sub>
 </td>
 </tr>
 </table>
 
-<sub><i>Скриншоты можно найти в папке <code>docs/</code></i></sub>
+<sub><i>Screenshots live in the <code>docs/</code> folder</i></sub>
 
 </div>
 
@@ -95,31 +95,31 @@
 
 <div align="center">
 
-## 🎯 Что это
+## 🎯 What is it
 
 </div>
 
-**AstraKeys** — приложение для Windows, которое играет музыку в Roblox за вас. Вставляете текст песни в формате Roblox-пианино — программа эмулирует нажатия клавиш с точными таймингами.
+**AstraKeys** is a Windows app that plays music in Roblox for you. Paste a song in Roblox piano notation — the program emulates key presses with precise timing.
 
-Помимо воспроизведения — **полноценная студия**: записывает вашу игру, редактирует записи, экспортирует в MIDI и умеет отправлять ноты на внешние синтезаторы через loopMIDI.
+Beyond playback, it's a **full studio**: records your playing, edits recordings, exports to MIDI, and can send notes to external synthesizers via loopMIDI.
 
 <br>
 
 <details>
-<summary><b>📑 Содержание</b> <i>(нажмите, чтобы развернуть)</i></summary>
+<summary><b>📑 Table of Contents</b> <i>(click to expand)</i></summary>
 
 <br>
 
-- [Возможности](#-возможности)
-- [Установка](#-установка)
-- [Горячие клавиши](#-горячие-клавиши)
-- [Формат песен](#-формат-песен)
+- [Features](#-features)
+- [Installation](#-installation)
+- [Hotkeys](#-hotkeys)
+- [Song format](#-song-format)
 - [MIDI (FreePiano)](#-midi-freepiano)
-- [Файлы настроек](#-файлы-настроек)
+- [Config files](#-config-files)
 - [FAQ](#-faq)
-- [Стек](#-стек)
-- [Вклад](#-вклад)
-- [Лицензия](#-лицензия)
+- [Stack](#-stack)
+- [Contributing](#-contributing)
+- [License](#-license)
 
 </details>
 
@@ -131,7 +131,7 @@
 
 <div align="center">
 
-## 🌟 Возможности
+## 🌟 Features
 
 </div>
 
@@ -139,44 +139,44 @@
 <tr>
 <td width="50%" valign="top">
 
-### 🎵 Воспроизведение
+### 🎵 Playback
 
-- 📜 Плейлист с drag & drop
-- 🎹 Аккорды в формате Roblox
-- ⏱️ Точная эмуляция нажатий
-- 🎯 Два режима: **без задержек** / **с человеческими задержками**
-- 🎚️ Скорость **0.5× – 2.0×**
-- 🎼 Поддержка **BPM** для авто-удержания
+- 📜 Playlist with drag & drop
+- 🎹 Chords in Roblox format
+- ⏱️ Precise keypress emulation
+- 🎯 Two modes: **no delays** / **human delays**
+- 🎚️ Speed **0.5× – 2.0×**
+- 🎼 **BPM** support for auto-hold
 
-### 📝 Запись и редактор
+### 📝 Recording & Editor
 
-- 🔴 Запись в реальном времени `F12`
-- ✂️ Обрезка записей
-- 🔗 Склейка двух записей
+- 🔴 Live recording `F12`
+- ✂️ Trim recordings
+- 🔗 Concatenate two recordings
 - ↩️ Undo / Redo
-- 🎯 Квантизация `1/4` `1/8` `1/16` `1/32`
-- ⭐ Избранное, поиск, сортировка
-- 📦 Импорт / экспорт ZIP
+- 🎯 Quantize `1/4` `1/8` `1/16` `1/32`
+- ⭐ Favorites, search, sorting
+- 📦 Import / export ZIP
 
 </td>
 <td width="50%" valign="top">
 
 ### 🎼 MIDI & Audio
 
-- 🎹 MIDI-выход для FreePiano / loopMIDI
-- 💾 Экспорт в `.mid`
-- 🔊 Локальный звук через динамики *(ADSR-синтез)*
-- 🎚️ Регулировка громкости
-- 🎹 Воспроизведение **без педали** *(auto-hold)*
+- 🎹 MIDI output for FreePiano / loopMIDI
+- 💾 Export to `.mid`
+- 🔊 Local speaker audio *(ADSR synthesis)*
+- 🎚️ Volume control
+- 🎹 **Pedal-free** playback *(auto-hold)*
 
-### 🎨 Интерфейс
+### 🎨 Interface
 
-- 🌗 **10 тем** + кастомная
-- ✨ Плавные анимации
-- 🌍 Локализация **RU / EN / UK**
-- 🪟 Оверлей поверх игры
-- 📊 История воспроизведений
-- 🔄 Авто-обновления с GitHub
+- 🌗 **10 themes** + custom
+- ✨ Smooth animations
+- 🌍 Localization **RU / EN / UK**
+- 🪟 Overlay on top of the game
+- 📊 Play history
+- 🔄 Auto-updates from GitHub
 
 </td>
 </tr>
@@ -190,54 +190,54 @@
 
 <div align="center">
 
-## 🚀 Установка
+## 🚀 Installation
 
 </div>
 
-### ⚡ Готовый `.exe` *(рекомендуется)*
+### ⚡ Ready-to-use `.exe` *(recommended)*
 
 ```mermaid
 graph LR
-    A[📥 Releases]:::step --> B[⬇ Скачать .exe]:::step
-    B --> C[▶ Запуск от админа]:::step
-    C --> D[🎹 Играть]:::final
+    A[📥 Releases]:::step --> B[⬇ Download .exe]:::step
+    B --> C[▶ Run as admin]:::step
+    C --> D[🎹 Play]:::final
 
     classDef step fill:#1a1a1a,stroke:#d4af37,color:#d4af37,stroke-width:2px
     classDef final fill:#1a1a1a,stroke:#5cb85c,color:#5cb85c,stroke-width:2px
 ```
 
-1. Откройте [**Releases**](https://github.com/SMisha2/AstraKeys/releases/latest)
-2. Скачайте `AstraKeys.exe`
-3. Запустите **от имени администратора**
+1. Open [**Releases**](https://github.com/SMisha2/AstraKeys/releases/latest)
+2. Download `AstraKeys.exe`
+3. Run **as administrator**
 
 <br>
 
 > [!WARNING]
-> **Антивирус может ругаться** — это ложное срабатывание PyInstaller.
-> Добавьте файл в исключения: *Windows Defender → Защита от вирусов → Исключения*.
+> **Your antivirus may complain** — this is a PyInstaller false positive.
+> Add the file to exclusions: *Windows Defender → Virus & threat protection → Exclusions*.
 
 <br>
 
-### 🐍 Из исходников
+### 🐍 From source
 
 ```bash
-# 1. Клонируйте репозиторий
+# 1. Clone the repository
 git clone https://github.com/SMisha2/AstraKeys.git
 cd AstraKeys
 
-# 2. Установите зависимости
+# 2. Install dependencies
 pip install PyQt6 requests
 pip install mido python-rtmidi midiutil pynput
 pip install sounddevice numpy pywin32
 
-# 3. Запустите
+# 3. Run
 python AstraKeys.py
 ```
 
 <br>
 
 <details>
-<summary><b>🛠️ Сборка .exe через PyInstaller</b></summary>
+<summary><b>🛠️ Building .exe with PyInstaller</b></summary>
 
 <br>
 
@@ -260,7 +260,7 @@ pyinstaller --noconfirm --clean --onefile --windowed ^
     AstraKeys.py
 ```
 
-Готовый файл появится в `dist/AstraKeys.exe`.
+The resulting file will appear in `dist/AstraKeys.exe`.
 
 </details>
 
@@ -272,7 +272,7 @@ pyinstaller --noconfirm --clean --onefile --windowed ^
 
 <div align="center">
 
-## 🎮 Горячие клавиши
+## 🎮 Hotkeys
 
 </div>
 
@@ -280,16 +280,16 @@ pyinstaller --noconfirm --clean --onefile --windowed ^
 
 | | | | |
 |:---:|:---|:---:|:---|
-| <kbd>F1</kbd> | ▶ Пуск / Пауза | <kbd>F7</kbd> | 🔀 Сменить режим |
-| <kbd>F2</kbd> | 🔄 Рестарт песни | <kbd>F8</kbd> | ⏭ Следующая песня |
-| <kbd>F3</kbd> | ⏩ +25 нот | <kbd>F9</kbd> | ⏹ Стоп воспроизведения |
-| <kbd>F4</kbd> | ⏪ −25 нот | <kbd>F10</kbd> | 🎵 Последняя запись |
-| <kbd>F5</kbd> | ⏸ Пауза записи | <kbd>F12</kbd> | 🔴 Начать / стоп запись |
-| <kbd>F6</kbd> | ❄ Заморозка позиции | <kbd>Ctrl</kbd>+<kbd>↑↓</kbd> | ⚡ Скорость ± |
+| <kbd>F1</kbd> | ▶ Play / Pause | <kbd>F7</kbd> | 🔀 Switch mode |
+| <kbd>F2</kbd> | 🔄 Restart song | <kbd>F8</kbd> | ⏭ Next song |
+| <kbd>F3</kbd> | ⏩ +25 notes | <kbd>F9</kbd> | ⏹ Stop playback |
+| <kbd>F4</kbd> | ⏪ −25 notes | <kbd>F10</kbd> | 🎵 Last recording |
+| <kbd>F5</kbd> | ⏸ Pause recording | <kbd>F12</kbd> | 🔴 Start / stop recording |
+| <kbd>F6</kbd> | ❄ Freeze position | <kbd>Ctrl</kbd>+<kbd>↑↓</kbd> | ⚡ Speed ± |
 
 </div>
 
-> 💡 **Символы педалей:** `-` `=` `[` `]` — удерживают ноту, пока зажаты
+> 💡 **Pedal keys:** `-` `=` `[` `]` — hold a note while pressed
 
 <br>
 
@@ -299,27 +299,27 @@ pyinstaller --noconfirm --clean --onefile --windowed ^
 
 <div align="center">
 
-## 🎼 Формат песен
+## 🎼 Song format
 
 </div>
 
-Стандартная нотная запись Roblox:
+Standard Roblox piano notation:
 
 ```text
 [eT] [eT] [6eT] [ey] [6eT] [4qe] [qe] [6qe] [qE] 4 [6qe] 6 [QPS] C [Sc]
 ```
 
-### 📖 Синтаксис
+### 📖 Syntax
 
-| Символ | Значение |
+| Symbol | Meaning |
 |:---:|:---|
-| `q` | Нота — строчная (белая клавиша) |
-| `Q` | Нота — заглавная (чёрная клавиша) |
-| `[qwe]` | Аккорд — ноты играются одновременно |
-| `-` `=` `[` `]` | Педаль — удержание ноты |
-| _пробел_ | Игнорируется |
+| `q` | Note — lowercase (white key) |
+| `Q` | Note — uppercase (black key) |
+| `[qwe]` | Chord — notes played simultaneously |
+| `-` `=` `[` `]` | Pedal — note hold |
+| _space_ | Ignored |
 
-### 🎹 Карта клавиш
+### 🎹 Key map
 
 ```text
 1 2 3 4 5 6 7 8 9 0   →   C D E F G A B C D E
@@ -328,23 +328,23 @@ a s d f g h j k l     →   B C D E F G A B C
 z x c v b n m         →   D E F G A B C
 ```
 
-> 🔥 Заглавные буквы и символы `!@#$%^&*()` — **диезы** (чёрные клавиши)
+> 🔥 Uppercase letters and symbols `!@#$%^&*()` are **sharps** (black keys)
 
 <br>
 
-### ⏱ Timed-формат *(с версии 1.3.0)*
+### ⏱ Timed format *(since v1.3.0)*
 
-Формат с абсолютными таймингами для точного воспроизведения:
+Format with absolute timings for precise playback:
 
 ```text
 C {1441ms release}   I   [Q I] {214842ms press}
 ```
 
-| Часть | Значение |
+| Part | Meaning |
 |:---|:---|
-| `{NNNms press}` | Нота **нажимается** через N мс от начала |
-| `{NNNms release}` | Нота **отпускается** через N мс от начала |
-| _без `{}`_ | Интерполируется между ближайшими якорями |
+| `{NNNms press}` | Note **pressed** N ms after the start |
+| `{NNNms release}` | Note **released** N ms after the start |
+| _without `{}`_ | Interpolated between nearest anchors |
 
 <br>
 
@@ -362,7 +362,7 @@ C {1441ms release}   I   [Q I] {214842ms press}
 graph LR
     A[AstraKeys] -->|MIDI OUT| B[loopMIDI]
     B -->|Virtual Port| C[FreePiano]
-    C --> D[🔊 Звук]
+    C --> D[🔊 Audio]
 
     classDef app fill:#1a1a1a,stroke:#d4af37,color:#d4af37,stroke-width:2px
     classDef mid fill:#1a1a1a,stroke:#d4af37,color:#d4af37,stroke-width:1.5px
@@ -375,10 +375,10 @@ graph LR
 
 <br>
 
-1. Установите [**loopMIDI**](https://www.tobias-erichsen.de/software/loopmidi.html)
-2. Создайте виртуальный порт *(например, `AstraKeys`)*
-3. В AstraKeys откройте вкладку **MIDI** → включите **MIDI-выход** → выберите порт → нажмите **Тест**
-4. В FreePiano выберите этот же порт как вход
+1. Install [**loopMIDI**](https://www.tobias-erichsen.de/software/loopmidi.html)
+2. Create a virtual port *(e.g., `AstraKeys`)*
+3. In AstraKeys open the **MIDI** tab → enable **MIDI output** → select the port → click **Test**
+4. In FreePiano select the same port as input
 
 <br>
 
@@ -388,26 +388,26 @@ graph LR
 
 <div align="center">
 
-## 📁 Файлы настроек
+## 📁 Config files
 
 </div>
 
-Всё хранится рядом с приложением в JSON-формате:
+Everything is stored next to the app in JSON format:
 
-| 📄 Файл | 🗂 Содержимое |
+| 📄 File | 🗂 Contents |
 |:---|:---|
-| `app_settings.json` | Язык, тема, MIDI, задержки, скорость, BPM |
-| `playlist.json` | Сохранённый плейлист |
-| `pedal_settings.json` | Символы педалей |
-| `recordings_index.json` | Индекс всех записей |
-| `overlay_settings.json` | Настройки оверлея |
-| `window_state.json` | Позиция и размер окна |
-| `hotkeys.json` | Кастомные горячие клавиши |
-| `play_history.json` | История воспроизведений |
-| `song_profiles.json` | Профили песен |
-| `draft.txt` | Автосохранение ввода |
-| `recordings/` | Записи `.json` + `.mid` |
-| `backups/` | Автобэкапы плейлиста |
+| `app_settings.json` | Language, theme, MIDI, delays, speed, BPM |
+| `playlist.json` | Saved playlist |
+| `pedal_settings.json` | Pedal characters |
+| `recordings_index.json` | Index of all recordings |
+| `overlay_settings.json` | Overlay settings |
+| `window_state.json` | Window position and size |
+| `hotkeys.json` | Custom hotkeys |
+| `play_history.json` | Play history |
+| `song_profiles.json` | Song profiles |
+| `draft.txt` | Input autosave |
+| `recordings/` | Recordings `.json` + `.mid` |
+| `backups/` | Playlist backups |
 
 <br>
 
@@ -422,59 +422,59 @@ graph LR
 </div>
 
 <details>
-<summary><b>🛡 Антивирус удаляет AstraKeys.exe</b></summary>
+<summary><b>🛡 Antivirus deletes AstraKeys.exe</b></summary>
 <br>
 
-Ложное срабатывание PyInstaller. Добавьте файл в исключения:
+PyInstaller false positive. Add the file to exclusions:
 
-**Windows Defender → Защита от вирусов → Исключения → Добавить файл.**
+**Windows Defender → Virus & threat protection → Exclusions → Add file.**
 
 </details>
 
 <details>
-<summary><b>⌨ Клавиши не нажимаются в Roblox</b></summary>
+<summary><b>⌨ Keys don't register in Roblox</b></summary>
 <br>
 
-Запустите AstraKeys **от имени администратора**. Roblox и автокликер должны иметь одинаковые права доступа.
+Launch AstraKeys **as administrator**. Roblox and the autoclicker must have the same privileges.
 
 </details>
 
 <details>
-<summary><b>🎹 MIDI-порт не появляется</b></summary>
+<summary><b>🎹 MIDI port doesn't appear</b></summary>
 <br>
 
-Установите loopMIDI и создайте порт **до запуска** AstraKeys. Затем нажмите **⟳** во вкладке MIDI для обновления списка.
+Install loopMIDI and create a port **before** launching AstraKeys. Then click **⟳** in the MIDI tab to refresh.
 
 </details>
 
 <details>
-<summary><b>🔊 Нет звука в динамиках</b></summary>
+<summary><b>🔊 No audio from speakers</b></summary>
 <br>
 
 ```bash
 pip install sounddevice numpy
 ```
 
-Затем включите галочку **«Звук в динамиках»** во вкладке «Параметры».
+Then enable **"Speaker audio"** in the Parameters tab.
 
 </details>
 
 <details>
-<summary><b>⏱ Запись получилась кривой по таймингам</b></summary>
+<summary><b>⏱ Recording timing is off</b></summary>
 <br>
 
-Откройте **Редактор → Обрезка** в менеджере записей. Точность также зависит от режима:
+Open **Editor → Trim** in the recordings manager. Timing also depends on the mode:
 
-- 🎯 **«Без задержек»** — детерминированный
-- 🎲 **«С задержками»** — рандомизированный
+- 🎯 **"No delays"** — deterministic
+- 🎲 **"With delays"** — randomized
 
 </details>
 
 <details>
-<summary><b>🎮 Можно ли использовать с другими играми?</b></summary>
+<summary><b>🎮 Can I use it with other games?</b></summary>
 <br>
 
-Да — любая игра, где ноты играются клавишами `1234567890 qwerty...`. Убедитесь, что окно игры в фокусе.
+Yes — any game where notes are played with `1234567890 qwerty...`. Make sure the game window has focus.
 
 </details>
 
@@ -486,7 +486,7 @@ pip install sounddevice numpy
 
 <div align="center">
 
-## 🛠 Стек
+## 🛠 Stack
 
 <br>
 
@@ -510,7 +510,7 @@ pip install sounddevice numpy
 
 <div align="center">
 
-## 📊 Статистика
+## 📊 Statistics
 
 <br>
 
@@ -535,12 +535,12 @@ pip install sounddevice numpy
 
 <div align="center">
 
-## 🤝 Вклад
+## 🤝 Contributing
 
 </div>
 
-**Pull requests приветствуются!** 🎉
-По крупным изменениям сначала откройте [issue](https://github.com/SMisha2/AstraKeys/issues) для обсуждения.
+**Pull requests are welcome!** 🎉
+For major changes, please open an [issue](https://github.com/SMisha2/AstraKeys/issues) first to discuss.
 
 ```bash
 # Fork → Branch → PR
@@ -566,14 +566,14 @@ git push origin feature/amazing-feature
 
 <div align="center">
 
-## ⚠️ Дисклеймер
+## ⚠️ Disclaimer
 
 </div>
 
-> AstraKeys — инструмент для обучения и развлечения.
-> Автоматизация может нарушать правила использования Roblox и других игр.
-> Автор **не несёт ответственности** за блокировку аккаунтов или другие последствия.
-> Используйте на свой страх и риск — предпочтительно в одиночных режимах и личных проектах.
+> AstraKeys is a tool for learning and entertainment.
+> Automation may violate the terms of service of Roblox and other games.
+> The author is **not responsible** for account bans or any other consequences.
+> Use at your own risk — preferably in solo modes and personal projects.
 
 <br>
 
@@ -583,9 +583,9 @@ git push origin feature/amazing-feature
 
 <div align="center">
 
-## 📜 Лицензия
+## 📜 License
 
-Проект распространяется под лицензией **MIT** — используйте, форкайте, модифицируйте свободно.
+This project is distributed under the **MIT** license — use, fork, modify freely.
 
 <img src="https://img.shields.io/badge/License-MIT-5cb85c?style=for-the-badge&logo=opensourceinitiative&logoColor=white&labelColor=0a0a0a" alt="MIT">
 
@@ -593,28 +593,28 @@ git push origin feature/amazing-feature
 
 <br>
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:d4af37,50:2b2418,100:0a0a0a&height=140&section=footer&text=Сделано%20с%20любовью%20к%20музыке&fontSize=20&fontColor=d4af37&fontAlignY=70&animation=twinkling" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:d4af37,50:2b2418,100:0a0a0a&height=140&section=footer&text=Made%20with%20love%20for%20music&fontSize=20&fontColor=d4af37&fontAlignY=70&animation=twinkling" width="100%"/>
 
 <div align="center">
 
 <br>
 
 <sub>
-<b>Автор:</b> <a href="https://github.com/SMisha2">SMisha2</a>
+<b>Author:</b> <a href="https://github.com/SMisha2">SMisha2</a>
 &nbsp;·&nbsp;
-<b>Версия:</b> <code>1.3.0</code>
+<b>Version:</b> <code>1.3.0</code>
 &nbsp;·&nbsp;
-<b>Обновлено:</b> 2026
+<b>Updated:</b> 2026
 </sub>
 
 <br><br>
 
 <a href="https://github.com/SMisha2/AstraKeys/stargazers">
-  <img src="https://img.shields.io/badge/⭐_Поставьте_звезду_репозиторию-d4af37?style=for-the-badge&labelColor=0a0a0a" alt="Star">
+  <img src="https://img.shields.io/badge/⭐_Star_this_repository-d4af37?style=for-the-badge&labelColor=0a0a0a" alt="Star">
 </a>
 
 <br><br>
 
-<sub>⬆ <a href="#top">Наверх</a></sub>
+<sub>⬆ <a href="#top">Back to top</a></sub>
 
 </div>
