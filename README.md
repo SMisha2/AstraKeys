@@ -1,4 +1,4 @@
-<div align="center">
+<img width="812" height="579" alt="image" src="https://github.com/user-attachments/assets/a15f0e05-0665-467b-8460-a643e149becf" /><div align="center">
 
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0a0a0a,40:1a1a1a,70:2b2418,100:d4af37&height=220&section=header&text=AstraKeys&fontSize=96&fontColor=d4af37&fontAlignY=38&fontFamily=Georgia&desc=Automatic%20pianist%20for%20Roblox&descAlignY=62&descSize=17&descColor=a8a8a8&animation=fadeIn" width="100%"/>
 
@@ -58,7 +58,7 @@
 <sub>Playlist, player, and settings</sub>
 </td>
 <td align="center" width="50%">
-<img src="docs/screenshot_overlay.png" alt="Notes overlay" width="100%"/>
+<img src="docs/Снимок экрана 2026-09-26 093008.png" alt="Notes overlay" width="100%"/>
 <br><br>
 <b>🎼 Notes overlay</b>
 <br>
@@ -67,14 +67,14 @@
 </tr>
 <tr>
 <td align="center" width="50%">
-<img src="docs/screenshot_editor.png" alt="Recording editor" width="100%"/>
+<img src="docs/Снимок экрана 2026-09-26 094607.png" alt="Recording editor" width="100%"/>
 <br><br>
 <b>✂️ Recording editor</b>
 <br>
 <sub>Trim, concat, quantize</sub>
 </td>
 <td align="center" width="50%">
-<img src="docs/screenshot_recordings.png" alt="Recordings manager" width="100%"/>
+<img src="docs/Снимок экрана 2026-09-26 094637.png" alt="Recordings manager" width="100%"/>
 <br><br>
 <b>📚 Recordings manager</b>
 <br>
